@@ -32,16 +32,21 @@ function initThreeJS() {
     threeCamera = new THREE.PerspectiveCamera(35, aspect, 0.1, 1000);
     threeCamera.position.set(0, 0, 6);
 
-    // Create renderer
+    // Create renderer - disable antialiasing for faster interactive performance
+    // Quality rendering is done at export time with higher resolution
     threeRenderer = new THREE.WebGLRenderer({
-        antialias: true,
+        antialias: false,  // Disable for better performance
         alpha: true,
-        preserveDrawingBuffer: true
+        preserveDrawingBuffer: true,
+        powerPreference: 'high-performance'
     });
     threeRenderer.setSize(400, 700);
-    threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Use device pixel ratio of 1 for fastest interactive rendering
+    threeRenderer.setPixelRatio(1);
     threeRenderer.outputEncoding = THREE.sRGBEncoding;
     threeRenderer.toneMapping = THREE.NoToneMapping;
+    // Disable automatic clearing - we control this manually
+    threeRenderer.autoClear = false;
 
     container.appendChild(threeRenderer.domElement);
 
@@ -61,19 +66,17 @@ function initThreeJS() {
     rimLight.position.set(0, -2, -3);
     threeScene.add(rimLight);
 
-    // Add orbit controls
-    orbitControls = new THREE.OrbitControls(threeCamera, threeRenderer.domElement);
-    orbitControls.enableDamping = true;
-    orbitControls.dampingFactor = 0.05;
-    orbitControls.enableZoom = false;
-    orbitControls.enablePan = false;
-    orbitControls.rotateSpeed = 0.5;
-
-    // Limit rotation
-    orbitControls.minPolarAngle = Math.PI / 4;
-    orbitControls.maxPolarAngle = Math.PI * 3 / 4;
-    orbitControls.minAzimuthAngle = -Math.PI / 3;
-    orbitControls.maxAzimuthAngle = Math.PI / 3;
+    // Add orbit controls (disabled - we use custom drag handling for better performance)
+    // orbitControls = new THREE.OrbitControls(threeCamera, threeRenderer.domElement);
+    // orbitControls.enableDamping = true;
+    // orbitControls.dampingFactor = 0.05;
+    // orbitControls.enableZoom = false;
+    // orbitControls.enablePan = false;
+    // orbitControls.rotateSpeed = 0.5;
+    // orbitControls.minPolarAngle = Math.PI / 4;
+    // orbitControls.maxPolarAngle = Math.PI * 3 / 4;
+    // orbitControls.minAzimuthAngle = -Math.PI / 3;
+    // orbitControls.maxAzimuthAngle = Math.PI / 3;
 
     isThreeJSInitialized = true;
 
@@ -294,6 +297,9 @@ function updateScreenTexture() {
         customScreenPlane.material = screenMaterial;
         console.log('Applied rounded texture to custom screen plane');
     }
+
+    // Trigger render update
+    requestThreeJSRender();
 }
 
 // Set 3D rotation from sliders (in degrees)
@@ -303,6 +309,9 @@ function setThreeJSRotation(rotX, rotY, rotZ) {
     phoneModel.rotation.x = rotX * Math.PI / 180;
     phoneModel.rotation.y = rotY * Math.PI / 180;
     phoneModel.rotation.z = rotZ * Math.PI / 180;
+
+    // Trigger render update
+    requestThreeJSRender();
 }
 
 // Set 3D scale
@@ -310,19 +319,29 @@ function setThreeJSScale(scale) {
     if (!phoneModel) return;
 
     phoneModel.scale.setScalar(baseModelScale * (scale / 100));
+
+    // Trigger render update
+    requestThreeJSRender();
 }
 
-// Animation loop
+// Render on demand instead of continuous animation loop
+let renderRequested = false;
+
+function requestThreeJSRender() {
+    if (renderRequested) return;
+    renderRequested = true;
+    requestAnimationFrame(() => {
+        renderRequested = false;
+        if (threeRenderer && threeScene && threeCamera) {
+            threeRenderer.clear();
+            threeRenderer.render(threeScene, threeCamera);
+        }
+    });
+}
+
+// Legacy function name for compatibility - now triggers on-demand render
 function animateThreeJS() {
-    requestAnimationFrame(animateThreeJS);
-
-    if (orbitControls) {
-        orbitControls.update();
-    }
-
-    if (threeRenderer && threeScene && threeCamera) {
-        threeRenderer.render(threeScene, threeCamera);
-    }
+    requestThreeJSRender();
 }
 
 // Render 3D phone only (with transparent background) to be composited
@@ -524,6 +543,9 @@ function updateThreeJSBackground() {
         // For image backgrounds, use a neutral color
         threeScene.background = new THREE.Color(0x1a1a2e);
     }
+
+    // Trigger render update
+    requestThreeJSRender();
 }
 
 // Cleanup
@@ -543,6 +565,7 @@ let isDragging3D = false;
 let isAltDragging = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
+let dragUpdatePending = false;
 
 function getUse3D() {
     if (typeof getScreenshotSettings === 'function') {
@@ -571,6 +594,8 @@ function setup3DCanvasInteraction() {
 
         const deltaX = e.clientX - lastMouseX;
         const deltaY = e.clientY - lastMouseY;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
 
         // Get current screenshot settings
         const ss = typeof getScreenshotSettings === 'function' ? getScreenshotSettings() : state.defaults?.screenshot;
@@ -599,17 +624,20 @@ function setup3DCanvasInteraction() {
             document.getElementById('rotation-3d-x').value = ss.rotation3D.x;
             document.getElementById('rotation-3d-x-value').textContent = Math.round(ss.rotation3D.x) + '°';
 
-            // Apply rotation
+            // Apply rotation directly to model (fast path - skip full updateCanvas)
             setThreeJSRotation(ss.rotation3D.x, ss.rotation3D.y, ss.rotation3D.z);
         }
 
-        // Update canvas
-        if (typeof updateCanvas === 'function') {
-            updateCanvas();
+        // Throttle updateCanvas calls using requestAnimationFrame
+        if (!dragUpdatePending) {
+            dragUpdatePending = true;
+            requestAnimationFrame(() => {
+                dragUpdatePending = false;
+                if (typeof updateCanvas === 'function') {
+                    updateCanvas();
+                }
+            });
         }
-
-        lastMouseX = e.clientX;
-        lastMouseY = e.clientY;
     });
 
     canvas.addEventListener('mouseup', () => {
