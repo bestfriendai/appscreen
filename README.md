@@ -42,6 +42,9 @@ A free, open-source tool for creating beautiful App Store screenshots with custo
 - **Language Flags**: Visual language switcher with flag icons
 - **AI-Powered Translation**: Auto-translate using Claude, OpenAI, or Google AI
 - **Per-Screenshot Languages**: Different text per screenshot if needed
+- **Localized Screenshots**: Upload language-specific screenshot images with auto-detection from filename
+- **Smart Duplicate Detection**: Dialog to replace, create new, or skip when uploading matching screenshots
+- **Multi-Language Export**: Export current language only or all languages in separate folders
 
 ### Project Management
 - **Multiple Projects**: Create, rename, and delete projects

@@ -24,8 +24,9 @@ Open `http://localhost:8000` in browser. Opening `index.html` directly from file
 
 - `index.html` - UI structure with modals for settings, about, project management, translations, and language selection
 - `styles.css` - Dark theme styling, responsive layout with CSS Grid (3-column: left sidebar, canvas, right sidebar)
-- `app.js` - All application logic (~4200 lines)
-- `three-renderer.js` - Three.js 3D rendering for iPhone mockups (~680 lines)
+- `app.js` - All application logic (~4400 lines)
+- `three-renderer.js` - Three.js 3D rendering for iPhone mockups (~1000 lines)
+- `language-utils.js` - Language detection, localized image management, and translation dialogs (~500 lines)
 
 **Key patterns in app.js:**
 
@@ -55,6 +56,13 @@ Open `http://localhost:8000` in browser. Opening `index.html` directly from file
 - `getTextSettings()` returns either global or per-screenshot text depending on toggle state
 - AI translation calls Claude/OpenAI/Google API directly from browser (requires API key in settings)
 
+**Localized screenshots (in language-utils.js):**
+- Each screenshot has `localizedImages` object keyed by language code (e.g., `{ 'en': {...}, 'de': {...} }`)
+- `detectLanguageFromFilename()` - parses suffixes like `_de`, `-fr`, `_pt-br` from filenames
+- `getScreenshotImage(screenshot)` - returns image for current language with fallback chain
+- `findScreenshotByBaseFilename()` - matches uploads to existing screenshots by base name
+- Duplicate detection shows dialog with Replace/Create New/Skip options when uploading matching files
+
 **UI Components:**
 - Right sidebar has three tabs: Background, Device, Text
 - Collapsible toggle sections for Noise, Shadow, Border, Headline, Subheadline
@@ -65,13 +73,24 @@ Open `http://localhost:8000` in browser. Opening `index.html` directly from file
 
 ## Key Functions
 
+**Project & Screenshots (app.js):**
 - `createProject()` / `deleteProject()` / `switchProject()` - async, must await and call `updateProjectSelector()` after
-- `handleFiles()` - processes uploaded images into screenshot array
+- `handleFiles()` - processes uploaded images, detects language, shows duplicate dialog if needed
+- `createNewScreenshot()` - creates screenshot entry with localized image support
 - `exportCurrent()` / `exportAll()` - generates PNG downloads from canvas (ZIP for batch export)
 - `applyPositionPreset()` - applies preset screenshot positioning (centered, bleed, tilt, perspective, etc.)
 - `transferStyle()` - copies style settings from one screenshot to another
 - `slideToScreenshot()` - animates carousel transition between screenshots
 - `updateSidePreviews()` - renders adjacent screenshots in side preview canvases
+
+**Language Utils (language-utils.js):**
+- `detectLanguageFromFilename()` - extracts language code from filename suffixes
+- `getBaseFilename()` - strips language suffix and extension for matching
+- `findScreenshotByBaseFilename()` - finds existing screenshot with same base name
+- `getScreenshotImage()` - returns localized image for current language with fallbacks
+- `addLocalizedImage()` / `removeLocalizedImage()` - manage per-language images
+- `showDuplicateDialog()` - async dialog for handling duplicate uploads
+- `showExportLanguageDialog()` - dialog for choosing export scope (current/all languages)
 
 ## External Dependencies
 
