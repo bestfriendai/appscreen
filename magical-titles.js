@@ -262,6 +262,13 @@ function showMagicalTitlesDialog() {
     document.getElementById('magical-titles-count').textContent = state.screenshots.length;
     document.getElementById('magical-titles-provider').textContent = providerConfig.name;
 
+    // Populate language dropdown
+    const langSelect = document.getElementById('magical-titles-language');
+    langSelect.innerHTML = state.projectLanguages.map(lang => {
+        const langName = languageNames[lang] || lang;
+        return `<option value="${lang}">${langName}</option>`;
+    }).join('');
+
     // Show modal
     document.getElementById('magical-titles-modal').classList.add('visible');
 }
@@ -285,8 +292,9 @@ async function generateMagicalTitles() {
     const providerConfig = llmProviders[provider];
     const apiKey = localStorage.getItem(providerConfig.storageKey);
 
-    // Get source language (first project language)
-    const sourceLang = state.projectLanguages[0] || 'en';
+    // Get selected language from dropdown
+    const langSelect = document.getElementById('magical-titles-language');
+    const sourceLang = langSelect.value || state.projectLanguages[0] || 'en';
     const langName = languageNames[sourceLang] || 'English';
 
     // Collect images from all screenshots
@@ -319,6 +327,11 @@ CRITICAL: Screenshot 1's headline MUST focus on the main value proposition - wha
 LENGTH REQUIREMENTS - THIS IS VERY IMPORTANT:
 - headline: VERY SHORT, maximum 2-4 words. Punchy, memorable, benefit-focused.
 - subheadline: SHORT, maximum 4-8 words. Expands on the headline.
+
+UNIQUENESS - VERY IMPORTANT:
+- Each screenshot MUST have a UNIQUE headline and subheadline
+- Do NOT repeat or reuse similar titles across screenshots
+- Each title should highlight a DIFFERENT feature or benefit
 
 Examples of good headlines: "Track Every Expense", "Sleep Better Tonight", "Never Forget Again"
 Examples of good subheadlines: "Automatic expense categorization and insights", "Science-backed sleep improvement", "Smart reminders that actually work"

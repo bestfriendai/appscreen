@@ -984,6 +984,12 @@
             <h3 class="modal-title">Generate Magical Titles</h3>
             <p class="modal-message">This will use AI to analyze your screenshots and generate marketing headlines and subheadlines for each screen.</p>
             <p class="modal-message" style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">Screenshots: <span id="magical-titles-count">0</span> · Provider: <span id="magical-titles-provider">-</span></p>
+            <div class="translate-source" style="margin-top: 16px;">
+                <label class="control-label">Generate titles in</label>
+                <select id="magical-titles-language" style="margin-bottom: 0;">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
             <div class="modal-buttons">
                 <button class="modal-btn modal-btn-cancel" id="magical-titles-cancel">Cancel</button>
                 <button class="modal-btn modal-btn-confirm" id="magical-titles-confirm" style="background: linear-gradient(135deg, #ffa500 0%, #ff8c00 100%);">Generate Titles</button>
