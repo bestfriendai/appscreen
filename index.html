@@ -1939,13 +1939,14 @@
     <script src="ai-engine.js?v=5"></script>
     <script src="fresh-templates.js?v=5"></script>
 
-    <!-- Auto-configure Google Gemini API -->
+    <!-- Configure default Gemini model (API key set via Settings) -->
     <script>
-        // Always use Gemini 2.0 Flash (GA model)
-        localStorage.setItem('googleApiKey', 'AIzaSyCA8xsXUhakUywN3ghzy7qR6jBQuyrs7Ng');
+        // Set default model (user must add API key via Settings)
         localStorage.setItem('aiProvider', 'google');
-        localStorage.setItem('googleModel', 'gemini-2.0-flash');
-        console.log('[Config] Gemini 2.0 Flash configured');
+        if (!localStorage.getItem('googleModel')) {
+            localStorage.setItem('googleModel', 'gemini-2.0-flash');
+        }
+        console.log('[Config] Gemini model:', localStorage.getItem('googleModel'));
     </script>
 
     <!-- Main application (v5 cache bust) -->
