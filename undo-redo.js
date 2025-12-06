@@ -20,7 +20,7 @@ const UndoRedo = (function() {
 
         const cloned = {};
         for (const key in obj) {
-            if (obj.hasOwnProperty(key)) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
                 // Skip image objects to save memory
                 if (key === 'image' && obj[key] instanceof HTMLImageElement) {
                     cloned[key] = obj[key]; // Keep reference

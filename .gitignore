@@ -19,3 +19,5 @@ out/
 *.AppImage
 *.deb
 *.snap
+node_modules/
+package-lock.json

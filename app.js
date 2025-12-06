@@ -1114,6 +1114,20 @@ function loadState() {
                         let loadedCount = 0;
                         const totalToLoad = parsed.screenshots.length;
 
+                        // Define checkAllLoaded before use (fixes no-inner-declarations)
+                        const checkAllLoaded = () => {
+                            if (loadedCount === totalToLoad) {
+                                updateScreenshotList();
+                                syncUIWithState();
+                                updateGradientStopsUI();
+                                updateCanvas();
+
+                                if (needsMigration && parsed.screenshots.length > 0) {
+                                    showMigrationPrompt();
+                                }
+                            }
+                        };
+
                         parsed.screenshots.forEach((s, index) => {
                             // Check if we have new localized format or old single-image format
                             const hasLocalizedImages = s.localizedImages && Object.keys(s.localizedImages).length > 0;
@@ -1194,19 +1208,6 @@ function loadState() {
                                 img.src = s.src;
                             }
                         });
-
-                        function checkAllLoaded() {
-                            if (loadedCount === totalToLoad) {
-                                updateScreenshotList();
-                                syncUIWithState();
-                                updateGradientStopsUI();
-                                updateCanvas();
-
-                                if (needsMigration && parsed.screenshots.length > 0) {
-                                    showMigrationPrompt();
-                                }
-                            }
-                        }
                     } else {
                         // No screenshots - still need to update UI
                         updateScreenshotList();
@@ -7751,34 +7752,38 @@ canvas.addEventListener('mousemove', (e) => {
     const screenshot = state.screenshots[state.selectedIndex];
 
     switch (canvasInteraction.dragTarget) {
-        case 'screenshot':
+        case 'screenshot': {
             const ss = getScreenshotSettings();
             ss.x = Math.max(10, Math.min(90, canvasInteraction.startValue.x + deltaX));
             ss.y = Math.max(10, Math.min(90, canvasInteraction.startValue.y + deltaY));
             break;
+        }
 
-        case 'text':
+        case 'text': {
             const textSettings = getTextSettings();
-            let newOffsetY = canvasInteraction.startValue.offsetY +
+            const newOffsetY = canvasInteraction.startValue.offsetY +
                 (textSettings.position === 'top' ? deltaY : -deltaY);
             textSettings.offsetY = Math.max(2, Math.min(40, newOffsetY));
             break;
+        }
 
-        case 'element':
+        case 'element': {
             if (screenshot?.elements && canvasInteraction.selectedElement !== null) {
                 const el = screenshot.elements[canvasInteraction.selectedElement];
                 el.x = Math.max(5, Math.min(95, canvasInteraction.startValue.x + deltaX));
                 el.y = Math.max(5, Math.min(95, canvasInteraction.startValue.y + deltaY));
             }
             break;
+        }
 
-        case 'widget':
+        case 'widget': {
             if (screenshot?.widgets && canvasInteraction.dragData?.index !== undefined) {
                 const widget = screenshot.widgets[canvasInteraction.dragData.index];
                 widget.position.x = Math.max(2, Math.min(85, canvasInteraction.startValue.x + deltaX));
                 widget.position.y = Math.max(2, Math.min(90, canvasInteraction.startValue.y + deltaY));
             }
             break;
+        }
     }
 
     updateCanvas();
@@ -7816,30 +7821,34 @@ canvas.addEventListener('wheel', (e) => {
     const screenshot = state.screenshots[state.selectedIndex];
 
     switch (target.type) {
-        case 'screenshot':
+        case 'screenshot': {
             const ss = getScreenshotSettings();
             ss.scale = Math.max(20, Math.min(150, ss.scale + delta));
             break;
+        }
 
-        case 'text':
+        case 'text': {
             const textSettings = getTextSettings();
             textSettings.headlineSize = Math.max(30, Math.min(150, (textSettings.headlineSize || 80) + delta));
             break;
+        }
 
-        case 'element':
+        case 'element': {
             if (screenshot?.elements && target.index !== undefined) {
                 const el = screenshot.elements[target.index];
                 el.scale = Math.max(5, Math.min(100, el.scale + delta));
             }
             break;
+        }
 
-        case 'widget':
+        case 'widget': {
             if (screenshot?.widgets && target.index !== undefined) {
                 const widget = screenshot.widgets[target.index];
                 widget.style = widget.style || {};
                 widget.style.fontSize = Math.max(10, Math.min(30, (widget.style.fontSize || 14) + delta / 2));
             }
             break;
+        }
     }
 
     updateCanvas();
