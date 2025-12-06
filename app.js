@@ -2493,19 +2493,6 @@ function setupEventListeners() {
     document.getElementById('export-current').addEventListener('click', exportCurrent);
     document.getElementById('export-all').addEventListener('click', exportAll);
 
-    // Magic Design button
-    const magicDesignBtn = document.getElementById('magic-design-btn');
-    if (magicDesignBtn) {
-        magicDesignBtn.addEventListener('click', () => {
-            if (state.screenshots.length === 0) {
-                alert('Please upload screenshots first');
-                return;
-            }
-            // Apply Magic Design to all screenshots
-            magicDesignAll();
-        });
-    }
-
     // Position presets
     document.querySelectorAll('.position-preset').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -6704,9 +6691,13 @@ document.getElementById('magic-design-btn')?.addEventListener('click', async () 
                 'googleApiKey'
     );
 
+    // If no API key, use local Magic Design (applies design rules without AI)
     if (!apiKey) {
-        alert(`Please add your ${provider === 'google' ? 'Gemini' : provider === 'anthropic' ? 'Claude' : 'OpenAI'} API key in Settings first.`);
-        document.getElementById('settings-btn')?.click();
+        const useLocal = confirm('No API key found. Apply professional design rules locally?\n\n(Add an API key in Settings for AI-powered headline generation)');
+        if (useLocal) {
+            console.log('[Magic Design] Applying local design rules...');
+            magicDesignAll();
+        }
         return;
     }
 
