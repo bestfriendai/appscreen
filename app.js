@@ -87,8 +87,13 @@ const state = {
 
 // Helper functions to get/set current screenshot settings
 function getCurrentScreenshot() {
-    if (state.screenshots.length === 0) return null;
-    return state.screenshots[state.selectedIndex];
+    if (!state.screenshots || state.screenshots.length === 0) return null;
+    // Ensure selectedIndex is within bounds
+    if (state.selectedIndex < 0 || state.selectedIndex >= state.screenshots.length) {
+        state.selectedIndex = Math.max(0, Math.min(state.selectedIndex, state.screenshots.length - 1));
+        if (state.screenshots.length === 0) return null;
+    }
+    return state.screenshots[state.selectedIndex] || null;
 }
 
 function getBackground() {
@@ -943,10 +948,10 @@ function updateProjectSelector() {
             <span class="project-option-meta">${screenshotCount} screenshot${screenshotCount !== 1 ? 's' : ''}</span>
         `;
 
-        option.addEventListener('click', (e) => {
+        option.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (project.id !== currentProjectId) {
-                switchProject(project.id);
+                await switchProject(project.id);
             }
             document.getElementById('project-dropdown').classList.remove('open');
         });
@@ -979,6 +984,21 @@ function initSync() {
     updateCanvas();
     // Then load saved data asynchronously
     init();
+}
+
+// Debounce utility for saveState
+let saveStateTimeout = null;
+const SAVE_DEBOUNCE_MS = 1000; // Wait 1 second after last change before saving
+
+// Debounced save - call this during frequent updates (sliders, dragging, etc.)
+function debouncedSaveState() {
+    if (saveStateTimeout) {
+        clearTimeout(saveStateTimeout);
+    }
+    saveStateTimeout = setTimeout(() => {
+        saveState();
+        saveStateTimeout = null;
+    }, SAVE_DEBOUNCE_MS);
 }
 
 // Save state to IndexedDB for current project
@@ -1736,21 +1756,29 @@ function setupEventListeners() {
         document.getElementById('project-modal').classList.remove('visible');
     });
 
-    document.getElementById('project-modal-confirm').addEventListener('click', () => {
+    document.getElementById('project-modal-confirm').addEventListener('click', async () => {
         const name = document.getElementById('project-name-input').value.trim();
         if (!name) {
             alert('Please enter a project name');
             return;
         }
-        
-        const mode = document.getElementById('project-modal').dataset.mode;
-        if (mode === 'new') {
-            createProject(name);
-        } else if (mode === 'rename') {
-            renameProject(name);
+        if (name.length > 50) {
+            alert('Project name must be 50 characters or less');
+            return;
         }
-        
-        document.getElementById('project-modal').classList.remove('visible');
+
+        const mode = document.getElementById('project-modal').dataset.mode;
+        try {
+            if (mode === 'new') {
+                await createProject(name);
+            } else if (mode === 'rename') {
+                await renameProject(name);
+            }
+            document.getElementById('project-modal').classList.remove('visible');
+        } catch (e) {
+            console.error('Project operation failed:', e);
+            alert('Failed to complete operation: ' + e.message);
+        }
     });
 
     document.getElementById('project-name-input').addEventListener('keydown', (e) => {
@@ -1764,9 +1792,14 @@ function setupEventListeners() {
         document.getElementById('delete-project-modal').classList.remove('visible');
     });
 
-    document.getElementById('delete-project-confirm').addEventListener('click', () => {
-        deleteProject();
-        document.getElementById('delete-project-modal').classList.remove('visible');
+    document.getElementById('delete-project-confirm').addEventListener('click', async () => {
+        try {
+            await deleteProject();
+            document.getElementById('delete-project-modal').classList.remove('visible');
+        } catch (e) {
+            console.error('Failed to delete project:', e);
+            alert('Failed to delete project: ' + e.message);
+        }
     });
 
     // Apply style to all modal buttons
@@ -2197,7 +2230,15 @@ function setupEventListeners() {
                     document.getElementById('bg-image-preview').style.display = 'block';
                     updateCanvas();
                 };
+                img.onerror = () => {
+                    console.error('Failed to load background image');
+                    alert('Failed to load image. Please try a different file.');
+                };
                 img.src = event.target.result;
+            };
+            reader.onerror = () => {
+                console.error('Failed to read background image file');
+                alert('Failed to read file. Please try again.');
             };
             reader.readAsDataURL(e.target.files[0]);
         }
@@ -2531,6 +2572,15 @@ function setupEventListeners() {
 
             if (typeof showThreeJS === 'function') {
                 showThreeJS(use3D);
+            }
+
+            // Check if 3D model is still loading and show indicator
+            if (use3D && typeof phoneModelLoaded !== 'undefined' && !phoneModelLoaded) {
+                // Model is loading - show a loading state
+                const tipEl = document.getElementById('3d-tip');
+                if (tipEl) {
+                    tipEl.innerHTML = '<span style="opacity: 0.7;">Loading 3D model...</span>';
+                }
             }
 
             if (use3D && typeof updateScreenTexture === 'function') {
@@ -3793,9 +3843,41 @@ function applyPositionPreset(preset) {
     updateCanvas();
 }
 
+// File validation constants
+const VALID_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB max per file
+
 function handleFiles(files) {
-    // Process files sequentially to handle duplicates one at a time
-    processFilesSequentially(Array.from(files).filter(f => f.type.startsWith('image/')));
+    const validFiles = [];
+    const errors = [];
+
+    Array.from(files).forEach(file => {
+        // Validate file type
+        if (!VALID_IMAGE_TYPES.includes(file.type) && !file.type.startsWith('image/')) {
+            errors.push(`${file.name}: Invalid file type. Please use PNG, JPEG, GIF, or WebP.`);
+            return;
+        }
+
+        // Validate file size
+        if (file.size > MAX_FILE_SIZE) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+            errors.push(`${file.name}: File too large (${sizeMB}MB). Maximum size is 20MB.`);
+            return;
+        }
+
+        validFiles.push(file);
+    });
+
+    // Show errors if any
+    if (errors.length > 0) {
+        console.warn('File validation errors:', errors);
+        alert('Some files could not be uploaded:\n\n' + errors.join('\n'));
+    }
+
+    // Process valid files
+    if (validFiles.length > 0) {
+        processFilesSequentially(validFiles);
+    }
 }
 
 // Handle files from Electron menu (receives array of {dataUrl, name})
@@ -3810,7 +3892,7 @@ async function processElectronFilesSequentially(filesData) {
 }
 
 async function processElectronImageFile(fileData) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = async () => {
             // Detect device type based on aspect ratio
@@ -3861,6 +3943,11 @@ async function processElectronImageFile(fileData) {
             }
             updateCanvas();
             resolve();
+        };
+        img.onerror = () => {
+            console.error('Failed to load image:', fileData.name);
+            alert(`Failed to load image: ${fileData.name}. The file may be corrupted.`);
+            resolve(); // Resolve anyway to continue processing other files
         };
         img.src = fileData.dataUrl;
     });
@@ -3929,7 +4016,17 @@ async function processImageFile(file) {
                 updateCanvas();
                 resolve();
             };
+            img.onerror = () => {
+                console.error('Failed to load image:', file.name);
+                alert(`Failed to load image: ${file.name}. The file may be corrupted.`);
+                resolve(); // Resolve anyway to continue processing other files
+            };
             img.src = e.target.result;
+        };
+        reader.onerror = () => {
+            console.error('Failed to read file:', file.name);
+            alert(`Failed to read file: ${file.name}. Please try again.`);
+            resolve(); // Resolve anyway to continue processing other files
         };
         reader.readAsDataURL(file);
     });
@@ -4437,7 +4534,15 @@ function replaceScreenshot(index) {
                 updateCanvas();
                 saveState();
             };
+            img.onerror = () => {
+                console.error('Failed to load replacement image:', file.name);
+                alert(`Failed to load image: ${file.name}. The file may be corrupted.`);
+            };
             img.src = event.target.result;
+        };
+        reader.onerror = () => {
+            console.error('Failed to read replacement file:', file.name);
+            alert(`Failed to read file: ${file.name}. Please try again.`);
         };
         reader.readAsDataURL(file);
 
@@ -5007,7 +5112,7 @@ function applyMagicPreset(presetName) {
 }
 
 function updateCanvas() {
-    saveState(); // Persist state on every update
+    debouncedSaveState(); // Persist state with debounce to avoid performance issues
     const dims = getCanvasDimensions();
     canvas.width = dims.width;
     canvas.height = dims.height;
@@ -6605,7 +6710,14 @@ function exportCurrent() {
     link.click();
 }
 
+// Export state flag to prevent race conditions
+let isExporting = false;
+
 async function exportAll() {
+    if (isExporting) {
+        alert('Export already in progress. Please wait.');
+        return;
+    }
     if (state.screenshots.length === 0) {
         alert('Please upload screenshots first');
         return;
@@ -6657,6 +6769,12 @@ function hideExportProgress() {
 
 // Export all screenshots for a specific language
 async function exportAllForLanguage(lang) {
+    if (isExporting) {
+        alert('Export already in progress. Please wait.');
+        return;
+    }
+    isExporting = true;
+
     const originalIndex = state.selectedIndex;
     const originalLang = state.currentLanguage;
     const zip = new JSZip();
@@ -6718,10 +6836,17 @@ async function exportAllForLanguage(lang) {
     link.href = URL.createObjectURL(content);
     link.click();
     URL.revokeObjectURL(link.href);
+    isExporting = false;
 }
 
 // Export all screenshots for all languages (separate folders)
 async function exportAllLanguages() {
+    if (isExporting) {
+        alert('Export already in progress. Please wait.');
+        return;
+    }
+    isExporting = true;
+
     const originalIndex = state.selectedIndex;
     const originalLang = state.currentLanguage;
     const zip = new JSZip();
@@ -6792,6 +6917,7 @@ async function exportAllLanguages() {
     link.href = URL.createObjectURL(content);
     link.click();
     URL.revokeObjectURL(link.href);
+    isExporting = false;
 }
 
 // ======================================

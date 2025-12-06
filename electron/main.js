@@ -474,15 +474,36 @@ ipcMain.handle('get-settings', async () => {
 
 ipcMain.handle('save-settings', async (event, settings) => {
     // Save settings to main window's localStorage
+    // Sanitize all inputs to prevent injection attacks
     try {
+        const sanitize = (str) => {
+            if (typeof str !== 'string') return '';
+            // Escape backslashes, quotes, and newlines
+            return str.replace(/\\/g, '\\\\')
+                      .replace(/'/g, "\\'")
+                      .replace(/"/g, '\\"')
+                      .replace(/\n/g, '\\n')
+                      .replace(/\r/g, '\\r');
+        };
+
+        const safeSettings = {
+            provider: sanitize(settings.provider || ''),
+            anthropicKey: sanitize(settings.anthropicKey || ''),
+            openaiKey: sanitize(settings.openaiKey || ''),
+            googleKey: sanitize(settings.googleKey || ''),
+            anthropicModel: sanitize(settings.anthropicModel || ''),
+            openaiModel: sanitize(settings.openaiModel || ''),
+            googleModel: sanitize(settings.googleModel || '')
+        };
+
         await mainWindow.webContents.executeJavaScript(`
-            localStorage.setItem('aiProvider', '${settings.provider}');
-            localStorage.setItem('anthropicApiKey', '${settings.anthropicKey}');
-            localStorage.setItem('openaiApiKey', '${settings.openaiKey}');
-            localStorage.setItem('googleApiKey', '${settings.googleKey}');
-            localStorage.setItem('anthropicModel', '${settings.anthropicModel}');
-            localStorage.setItem('openaiModel', '${settings.openaiModel}');
-            localStorage.setItem('googleModel', '${settings.googleModel}');
+            localStorage.setItem('aiProvider', '${safeSettings.provider}');
+            localStorage.setItem('anthropicApiKey', '${safeSettings.anthropicKey}');
+            localStorage.setItem('openaiApiKey', '${safeSettings.openaiKey}');
+            localStorage.setItem('googleApiKey', '${safeSettings.googleKey}');
+            localStorage.setItem('anthropicModel', '${safeSettings.anthropicModel}');
+            localStorage.setItem('openaiModel', '${safeSettings.openaiModel}');
+            localStorage.setItem('googleModel', '${safeSettings.googleModel}');
             // Update the UI if settings modal functions exist
             if (typeof loadSettingsFromStorage === 'function') {
                 loadSettingsFromStorage();

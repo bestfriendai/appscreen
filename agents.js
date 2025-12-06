@@ -84,6 +84,9 @@ async function callAI(prompt, options = {}) {
     return callGemini(apiKey, model, prompt, options);
 }
 
+// API request timeout in milliseconds (30 seconds default)
+const API_TIMEOUT_MS = 30000;
+
 /**
  * Call Google Gemini API
  */
@@ -126,11 +129,19 @@ async function callGemini(apiKey, model, prompt, options = {}) {
         console.log('[Gemini API] Request config:', requestBody.generationConfig);
     }
 
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeout = options.timeout || API_TIMEOUT_MS;
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, timeout);
+
     try {
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody),
+            signal: controller.signal
         });
 
         if (!response.ok) {
@@ -169,8 +180,16 @@ async function callGemini(apiKey, model, prompt, options = {}) {
 
         return text;
     } catch (error) {
+        // Handle timeout/abort errors
+        if (error.name === 'AbortError') {
+            console.error('Gemini API call timed out after', timeout, 'ms');
+            throw new Error('API request timed out. Please try again.');
+        }
         console.error('Gemini call failed:', error);
         throw error;
+    } finally {
+        // Always clear the timeout
+        clearTimeout(timeoutId);
     }
 }
 

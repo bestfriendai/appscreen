@@ -255,6 +255,48 @@ function loadPhoneModel() {
     );
 }
 
+// Clean up material and all its textures
+function cleanMaterial(material) {
+    if (!material) return;
+
+    material.dispose();
+
+    // Dispose all texture maps
+    const textureProps = [
+        'map', 'lightMap', 'bumpMap', 'normalMap', 'specularMap',
+        'envMap', 'alphaMap', 'aoMap', 'displacementMap', 'emissiveMap',
+        'gradientMap', 'metalnessMap', 'roughnessMap'
+    ];
+
+    textureProps.forEach(prop => {
+        if (material[prop]) {
+            material[prop].dispose();
+        }
+    });
+}
+
+// Recursively dispose all resources in a hierarchy
+function disposeHierarchy(node) {
+    if (!node) return;
+
+    for (let i = node.children.length - 1; i >= 0; i--) {
+        disposeHierarchy(node.children[i]);
+        node.remove(node.children[i]);
+    }
+
+    if (node.geometry) {
+        node.geometry.dispose();
+    }
+
+    if (node.material) {
+        if (Array.isArray(node.material)) {
+            node.material.forEach(cleanMaterial);
+        } else {
+            cleanMaterial(node.material);
+        }
+    }
+}
+
 // Switch to a different phone model
 function switchPhoneModel(deviceType) {
     if (!deviceConfigs[deviceType]) {
@@ -274,12 +316,8 @@ function switchPhoneModel(deviceType) {
     // Remove current pivot (which contains the model) from scene
     if (phonePivot && threeScene) {
         threeScene.remove(phonePivot);
-        phonePivot.traverse((child) => {
-            if (child.isMesh) {
-                child.geometry?.dispose();
-                child.material?.dispose();
-            }
-        });
+        // Properly dispose all resources including textures
+        disposeHierarchy(phonePivot);
         phonePivot = null;
         phoneModel = null;
     }
@@ -290,8 +328,14 @@ function switchPhoneModel(deviceType) {
             customScreenPlane.parent.remove(customScreenPlane);
         }
         customScreenPlane.geometry?.dispose();
-        customScreenPlane.material?.dispose();
+        cleanMaterial(customScreenPlane.material);
         customScreenPlane = null;
+    }
+
+    // Clean up screen texture
+    if (screenTexture) {
+        screenTexture.dispose();
+        screenTexture = null;
     }
 
     screenMesh = null;
@@ -917,14 +961,48 @@ function updateThreeJSBackground() {
 
 // Cleanup
 function disposeThreeJS() {
+    // Dispose screen texture
     if (screenTexture) {
         screenTexture.dispose();
+        screenTexture = null;
     }
+
+    // Dispose custom screen plane
+    if (customScreenPlane) {
+        customScreenPlane.geometry?.dispose();
+        cleanMaterial(customScreenPlane.material);
+        customScreenPlane = null;
+    }
+
+    // Dispose phone model hierarchy
+    if (phonePivot) {
+        disposeHierarchy(phonePivot);
+        if (threeScene) threeScene.remove(phonePivot);
+        phonePivot = null;
+        phoneModel = null;
+    }
+
+    // Dispose cached phone models
+    Object.keys(phoneModelCache).forEach(key => {
+        const cached = phoneModelCache[key];
+        if (cached?.pivot) {
+            disposeHierarchy(cached.pivot);
+        }
+    });
+    phoneModelCache = {};
+
+    // Dispose renderer
     if (threeRenderer) {
         threeRenderer.dispose();
+        threeRenderer = null;
     }
+
+    threeScene = null;
+    threeCamera = null;
+    screenMesh = null;
     isThreeJSInitialized = false;
     phoneModelLoaded = false;
+    phoneModelLoading = false;
 }
 
 // Interactive rotation/movement for 2D canvas in 3D mode
