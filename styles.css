@@ -1105,6 +1105,39 @@ input[type="range"]::-webkit-slider-thumb {
     width: 100%;
 }
 
+/* Magic Design Button */
+.magic-design-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.magic-design-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.magic-design-btn:active {
+    transform: translateY(0);
+}
+
+.magic-design-btn svg {
+    flex-shrink: 0;
+}
+
 /* Modal styles */
 .modal-overlay {
     position: fixed;

@@ -29,8 +29,8 @@ const state = {
             noiseIntensity: 10
         },
         screenshot: {
-            scale: 70,
-            y: 55,
+            scale: 62,           // RULE 8: Optimal 58-65%
+            y: 72,               // RULE 1: Device Y 70-80%
             x: 50,
             rotation: 0,
             perspective: 0,
@@ -41,10 +41,10 @@ const state = {
             shadow: {
                 enabled: true,
                 color: '#000000',
-                blur: 40,
-                opacity: 30,
+                blur: 60,        // RULE 7: 40-80px blur
+                opacity: 35,     // RULE 7: 25-40% opacity
                 x: 0,
-                y: 20
+                y: 25            // RULE 7: 15-30px offset Y
             },
             frame: {
                 enabled: false,
@@ -58,28 +58,29 @@ const state = {
             headlines: { en: '' },
             headlineLanguages: ['en'],
             currentHeadlineLang: 'en',
-            headlineFont: "-apple-system, BlinkMacSystemFont, 'SF Pro Display'",
-            headlineSize: 100,
-            headlineWeight: '600',
+            headlineFont: "Poppins",              // RULE 12: Premium fonts
+            headlineSize: 72,                      // RULE 2: 64-80px
+            headlineWeight: '700',                 // RULE 2: 600-800 weight
             headlineItalic: false,
             headlineUnderline: false,
             headlineStrikethrough: false,
             headlineColor: '#ffffff',
             position: 'top',
-            offsetY: 12,
-            lineHeight: 110,
-            subheadlineEnabled: false,
+            offsetY: 8,                            // RULE 2: 6-12% from top
+            lineHeight: 95,                        // RULE 2: 0.90-0.98 tight
+            stackedText: true,                     // RULE 2: Stacked arrangement
+            subheadlineEnabled: true,
             subheadlines: { en: '' },
             subheadlineLanguages: ['en'],
             currentSubheadlineLang: 'en',
-            subheadlineFont: "-apple-system, BlinkMacSystemFont, 'SF Pro Display'",
-            subheadlineSize: 50,
-            subheadlineWeight: '400',
+            subheadlineFont: "Inter",              // RULE 12: Inter for subheadlines
+            subheadlineSize: 20,                   // RULE 3: 16-24px
+            subheadlineWeight: '400',              // RULE 3: 400-500 weight
             subheadlineItalic: false,
             subheadlineUnderline: false,
             subheadlineStrikethrough: false,
             subheadlineColor: '#ffffff',
-            subheadlineOpacity: 70
+            subheadlineOpacity: 75                 // RULE 3: 70-80% opacity
         }
     }
 };
@@ -2492,6 +2493,19 @@ function setupEventListeners() {
     document.getElementById('export-current').addEventListener('click', exportCurrent);
     document.getElementById('export-all').addEventListener('click', exportAll);
 
+    // Magic Design button
+    const magicDesignBtn = document.getElementById('magic-design-btn');
+    if (magicDesignBtn) {
+        magicDesignBtn.addEventListener('click', () => {
+            if (state.screenshots.length === 0) {
+                alert('Please upload screenshots first');
+                return;
+            }
+            // Apply Magic Design to all screenshots
+            magicDesignAll();
+        });
+    }
+
     // Position presets
     document.querySelectorAll('.position-preset').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -4493,6 +4507,404 @@ function getCanvasDimensions() {
     return deviceDimensions[state.outputDevice];
 }
 
+// ============================================================================
+// RULE 4: TEXT-DEVICE SEPARATION VALIDATION
+// Ensures minimum 50px gap between text and device
+// ============================================================================
+
+function calculateTextBounds(dims) {
+    const text = getTextSettings();
+    const headline = text.headlines[state.selectedLanguage] || text.headlines['en'] || '';
+    const subheadline = text.subheadlines?.[state.selectedLanguage] || text.subheadlines?.['en'] || '';
+
+    if (!headline && !subheadline) return null;
+
+    // Create off-screen canvas for measuring
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+
+    const leftPadding = dims.width * 0.08;
+    const rightPadding = dims.width * 0.08;
+    const useStackedText = text.stackedText !== false;
+
+    let textY = text.position === 'top'
+        ? dims.height * (text.offsetY / 100)
+        : dims.height * (1 - text.offsetY / 100);
+
+    let totalHeight = 0;
+
+    // Calculate headline bounds
+    if (headline) {
+        tempCtx.font = `${text.headlineWeight} ${text.headlineSize}px ${text.headlineFont}`;
+
+        let lines;
+        if (useStackedText) {
+            lines = headline.split(/\s+/).filter(word => word.length > 0);
+        } else {
+            lines = wrapText(tempCtx, headline, dims.width - leftPadding - rightPadding);
+        }
+
+        const lineHeight = text.headlineSize * (text.lineHeight / 100);
+        totalHeight += lines.length * lineHeight;
+    }
+
+    // Calculate subheadline bounds
+    if (subheadline && text.subheadlineEnabled) {
+        const gap = 16; // Gap between headline and subheadline
+        tempCtx.font = `${text.subheadlineWeight || '400'} ${text.subheadlineSize}px ${text.subheadlineFont || text.headlineFont}`;
+        const subLines = wrapText(tempCtx, subheadline, dims.width - leftPadding - rightPadding);
+        const subLineHeight = text.subheadlineSize * 1.4;
+        totalHeight += gap + (subLines.length * subLineHeight);
+    }
+
+    // Return bounds based on position
+    if (text.position === 'top') {
+        return {
+            top: textY,
+            bottom: textY + totalHeight,
+            height: totalHeight
+        };
+    } else {
+        return {
+            top: textY - totalHeight,
+            bottom: textY,
+            height: totalHeight
+        };
+    }
+}
+
+function calculateDeviceBounds(dims) {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) return null;
+
+    const img = getScreenshotImage(screenshot);
+    if (!img) return null;
+
+    const settings = getScreenshotSettings();
+    const scale = settings.scale / 100;
+
+    let imgWidth = dims.width * scale;
+    let imgHeight = (img.height / img.width) * imgWidth;
+
+    if (imgHeight > dims.height * scale) {
+        imgHeight = dims.height * scale;
+        imgWidth = (img.width / img.height) * imgHeight;
+    }
+
+    const y = (dims.height - imgHeight) * (settings.y / 100);
+
+    return {
+        top: y,
+        bottom: y + imgHeight,
+        height: imgHeight,
+        width: imgWidth
+    };
+}
+
+function validateTextDeviceSeparation(autoAdjust = false) {
+    const dims = getCanvasDimensions();
+    const textBounds = calculateTextBounds(dims);
+    const deviceBounds = calculateDeviceBounds(dims);
+
+    if (!textBounds || !deviceBounds) return { valid: true, gap: null };
+
+    const MIN_GAP = 50; // RULE 4: Minimum 50px gap
+    const text = getTextSettings();
+
+    let gap;
+    if (text.position === 'top') {
+        gap = deviceBounds.top - textBounds.bottom;
+    } else {
+        gap = textBounds.top - deviceBounds.bottom;
+    }
+
+    const isValid = gap >= MIN_GAP;
+
+    if (!isValid && autoAdjust) {
+        // Auto-adjust device position to maintain minimum gap
+        const screenshot = state.screenshots[state.selectedIndex];
+        if (screenshot && screenshot.screenshot) {
+            const neededShift = MIN_GAP - gap + 10; // Extra 10px buffer
+            const currentY = screenshot.screenshot.y;
+
+            if (text.position === 'top') {
+                // Move device down
+                const newY = Math.min(90, currentY + (neededShift / dims.height) * 100);
+                screenshot.screenshot.y = newY;
+            } else {
+                // Move device up
+                const newY = Math.max(10, currentY - (neededShift / dims.height) * 100);
+                screenshot.screenshot.y = newY;
+            }
+
+            console.log(`[RULE 4] Auto-adjusted device Y from ${currentY.toFixed(1)}% to ${screenshot.screenshot.y.toFixed(1)}%`);
+            return { valid: true, gap: MIN_GAP + 10, adjusted: true };
+        }
+    }
+
+    return { valid: isValid, gap: gap };
+}
+
+// ============================================================================
+// CATEGORY DETECTION & DESIGN PROFILES
+// Automatically applies category-specific design settings
+// ============================================================================
+
+const CATEGORY_PROFILES = {
+    finance: {
+        name: 'Finance & Banking',
+        keywords: ['bank', 'money', 'invest', 'stock', 'crypto', 'trade', 'wallet', 'payment', 'budget', 'savings'],
+        colors: ['#0A1628', '#1A2744', '#0D47A1', '#1565C0', '#00695C'],
+        fonts: { headline: 'SF Pro Display', subheadline: 'Inter' },
+        style: 'professional'
+    },
+    wellness: {
+        name: 'Health & Wellness',
+        keywords: ['health', 'fitness', 'workout', 'meditation', 'sleep', 'yoga', 'calm', 'mindful', 'diet', 'nutrition'],
+        colors: ['#E8F5E9', '#C8E6C9', '#A5D6A7', '#81C784', '#4DB6AC'],
+        fonts: { headline: 'Poppins', subheadline: 'Inter' },
+        style: 'calming'
+    },
+    ecommerce: {
+        name: 'E-commerce & Shopping',
+        keywords: ['shop', 'buy', 'cart', 'store', 'deal', 'sale', 'product', 'order', 'delivery', 'price'],
+        colors: ['#FF6B35', '#F7931E', '#FFB627', '#FF4757', '#2ED573'],
+        fonts: { headline: 'Poppins', subheadline: 'Inter' },
+        style: 'vibrant'
+    },
+    social: {
+        name: 'Social & Communication',
+        keywords: ['chat', 'message', 'social', 'friend', 'share', 'connect', 'network', 'dating', 'community'],
+        colors: ['#667EEA', '#764BA2', '#F093FB', '#F5576C', '#4FACFE'],
+        fonts: { headline: 'SF Pro Display', subheadline: 'Inter' },
+        style: 'modern'
+    },
+    kids: {
+        name: 'Kids & Education',
+        keywords: ['kids', 'child', 'learn', 'education', 'school', 'game', 'play', 'fun', 'abc', 'math'],
+        colors: ['#FFD93D', '#FF6B6B', '#4ECDC4', '#95E1D3', '#F38181'],
+        fonts: { headline: 'Nunito', subheadline: 'Nunito' },
+        style: 'playful'
+    },
+    entertainment: {
+        name: 'Entertainment & Media',
+        keywords: ['movie', 'music', 'video', 'stream', 'watch', 'listen', 'podcast', 'tv', 'show', 'play'],
+        colors: ['#141414', '#E50914', '#1DB954', '#FF0050', '#000000'],
+        fonts: { headline: 'Poppins', subheadline: 'Inter' },
+        style: 'bold'
+    },
+    sports: {
+        name: 'Sports & Fitness',
+        keywords: ['sport', 'run', 'gym', 'training', 'athlete', 'score', 'team', 'match', 'workout', 'exercise'],
+        colors: ['#1A1A2E', '#16213E', '#0F3460', '#E94560', '#00FF87'],
+        fonts: { headline: 'Oswald', subheadline: 'Inter' },
+        style: 'energetic'
+    },
+    food: {
+        name: 'Food & Dining',
+        keywords: ['food', 'recipe', 'cook', 'restaurant', 'delivery', 'order', 'meal', 'eat', 'menu', 'cuisine'],
+        colors: ['#FF6B35', '#FF8E53', '#FFD93D', '#6BCB77', '#4D96FF'],
+        fonts: { headline: 'Poppins', subheadline: 'Inter' },
+        style: 'appetizing'
+    }
+};
+
+function detectCategory(appName, description = '') {
+    const searchText = (appName + ' ' + description).toLowerCase();
+    let bestMatch = { category: null, score: 0 };
+
+    for (const [category, profile] of Object.entries(CATEGORY_PROFILES)) {
+        let score = 0;
+        for (const keyword of profile.keywords) {
+            if (searchText.includes(keyword)) {
+                score += 1;
+            }
+        }
+        if (score > bestMatch.score) {
+            bestMatch = { category, score };
+        }
+    }
+
+    return bestMatch.score > 0 ? bestMatch.category : 'ecommerce'; // Default to ecommerce
+}
+
+function applyCategoryProfile(category) {
+    const profile = CATEGORY_PROFILES[category];
+    if (!profile) return;
+
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) return;
+
+    // Apply font settings
+    state.text.headlineFont = profile.fonts.headline;
+    state.text.subheadlineFont = profile.fonts.subheadline;
+
+    // Apply a color from the category palette
+    const colorIndex = state.selectedIndex % profile.colors.length;
+    const bgColor = profile.colors[colorIndex];
+
+    // Update background for current screenshot
+    if (!screenshot.background) {
+        screenshot.background = {};
+    }
+    screenshot.background.type = 'solid';
+    screenshot.background.color = bgColor;
+
+    console.log(`[Category Profile] Applied "${profile.name}" profile with color ${bgColor}`);
+
+    syncUIWithState();
+    updateCanvas();
+}
+
+// ============================================================================
+// MAGIC DESIGN - AUTO-APPLY ALL DESIGN RULES
+// One-click professional screenshot transformation
+// ============================================================================
+
+function magicDesign(appName = '', options = {}) {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) {
+        console.warn('[Magic Design] No screenshot selected');
+        return;
+    }
+
+    console.log('[Magic Design] Starting transformation...');
+
+    // 1. Detect category and get profile
+    const category = options.category || detectCategory(appName);
+    const profile = CATEGORY_PROFILES[category] || CATEGORY_PROFILES.ecommerce;
+
+    // 2. Apply RULE 1: Device positioning (Y: 70-80%)
+    if (!screenshot.screenshot) {
+        screenshot.screenshot = {};
+    }
+    screenshot.screenshot.y = 72; // Optimal position
+    screenshot.screenshot.x = 50; // Centered horizontally
+
+    // 3. Apply RULE 8: Device scale (58-65%)
+    screenshot.screenshot.scale = 62;
+
+    // 4. Apply RULE 7: Shadow settings
+    screenshot.screenshot.shadow = {
+        enabled: true,
+        blur: 60,
+        opacity: 35,
+        x: 0,
+        y: 25,
+        color: '#000000'
+    };
+
+    // 5. Apply RULE 6: Background color from category profile
+    const colorIndex = state.selectedIndex % profile.colors.length;
+    if (!screenshot.background) {
+        screenshot.background = {};
+    }
+    screenshot.background.type = 'solid';
+    screenshot.background.color = profile.colors[colorIndex];
+
+    // 6. Apply RULE 2 & 12: Typography settings
+    state.text.headlineFont = profile.fonts.headline;
+    state.text.subheadlineFont = profile.fonts.subheadline;
+    state.text.headlineSize = 72;
+    state.text.headlineWeight = '700';
+    state.text.lineHeight = 95;
+    state.text.stackedText = true;
+    state.text.position = 'top';
+    state.text.offsetY = 8;
+    state.text.headlineColor = '#FFFFFF';
+
+    // 7. Apply RULE 3: Subheadline settings
+    state.text.subheadlineSize = 20;
+    state.text.subheadlineWeight = '400';
+    state.text.subheadlineOpacity = 75;
+
+    // 8. RULE 4: Validate text-device separation
+    const dims = getCanvasDimensions();
+    validateTextDeviceSeparation(true); // Auto-adjust if needed
+
+    // 9. Apply corner radius for modern look
+    screenshot.screenshot.cornerRadius = 45;
+
+    console.log(`[Magic Design] Applied "${profile.name}" style to screenshot ${state.selectedIndex + 1}`);
+
+    syncUIWithState();
+    updateCanvas();
+
+    return {
+        category,
+        profile: profile.name,
+        color: profile.colors[colorIndex]
+    };
+}
+
+// Apply Magic Design to all screenshots with consistent styling
+function magicDesignAll(appName = '', options = {}) {
+    const category = options.category || detectCategory(appName);
+    const profile = CATEGORY_PROFILES[category] || CATEGORY_PROFILES.ecommerce;
+    const originalIndex = state.selectedIndex;
+
+    console.log(`[Magic Design] Applying "${profile.name}" style to all ${state.screenshots.length} screenshots...`);
+
+    state.screenshots.forEach((screenshot, index) => {
+        state.selectedIndex = index;
+
+        // Apply Magic Design with same category for consistency
+        magicDesign(appName, { category });
+    });
+
+    // Restore original selection
+    state.selectedIndex = originalIndex;
+
+    // RULE 10: Ensure set consistency
+    const consistency = validateSetConsistency();
+    if (!consistency.consistent) {
+        console.warn('[Magic Design] Consistency issues:', consistency.issues);
+    }
+
+    syncUIWithState();
+    updateCanvas();
+
+    console.log('[Magic Design] All screenshots transformed successfully!');
+}
+
+// Quick presets for common app types
+const MAGIC_PRESETS = {
+    professional: {
+        category: 'finance',
+        options: { style: 'minimal' }
+    },
+    vibrant: {
+        category: 'ecommerce',
+        options: { style: 'bold' }
+    },
+    calming: {
+        category: 'wellness',
+        options: { style: 'soft' }
+    },
+    playful: {
+        category: 'kids',
+        options: { style: 'fun' }
+    },
+    modern: {
+        category: 'social',
+        options: { style: 'trendy' }
+    },
+    dark: {
+        category: 'entertainment',
+        options: { style: 'dramatic' }
+    }
+};
+
+function applyMagicPreset(presetName) {
+    const preset = MAGIC_PRESETS[presetName];
+    if (!preset) {
+        console.warn(`[Magic Design] Unknown preset: ${presetName}`);
+        return;
+    }
+
+    magicDesign('', { category: preset.category });
+}
+
 function updateCanvas() {
     saveState(); // Persist state on every update
     const dims = getCanvasDimensions();
@@ -4543,6 +4955,102 @@ function updateCanvas() {
     updateSidePreviews();
 }
 
+// ============================================================================
+// WIDGET RENDERING SYSTEM
+// Supports: star ratings, download counts, App of the Day badges, custom text
+// ============================================================================
+
+const WIDGET_PRESETS = {
+    rating: {
+        type: 'rating',
+        text: '4.9',
+        stars: 5,
+        style: {
+            background: 'rgba(0,0,0,0.75)',
+            color: '#FFD700',
+            textColor: '#FFFFFF',
+            fontSize: 16,
+            padding: 12,
+            borderRadius: 12,
+            blur: 10
+        }
+    },
+    downloads: {
+        type: 'downloads',
+        text: '10M+',
+        label: 'Downloads',
+        style: {
+            background: 'rgba(0,0,0,0.75)',
+            color: '#FFFFFF',
+            fontSize: 14,
+            padding: 10,
+            borderRadius: 10,
+            blur: 10
+        }
+    },
+    appOfTheDay: {
+        type: 'appOfTheDay',
+        text: 'App of the Day',
+        icon: 'apple',
+        style: {
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: '#FFFFFF',
+            fontSize: 14,
+            padding: 12,
+            borderRadius: 16,
+            blur: 0
+        }
+    },
+    featured: {
+        type: 'featured',
+        text: '#1 in Category',
+        style: {
+            background: 'rgba(34, 197, 94, 0.9)',
+            color: '#FFFFFF',
+            fontSize: 14,
+            padding: 10,
+            borderRadius: 8,
+            blur: 0
+        }
+    },
+    editorsChoice: {
+        type: 'editorsChoice',
+        text: "Editor's Choice",
+        icon: 'badge',
+        style: {
+            background: 'rgba(59, 130, 246, 0.9)',
+            color: '#FFFFFF',
+            fontSize: 14,
+            padding: 12,
+            borderRadius: 12,
+            blur: 0
+        }
+    }
+};
+
+function drawStar(ctx, cx, cy, size, filled = true) {
+    const spikes = 5;
+    const outerRadius = size;
+    const innerRadius = size * 0.4;
+
+    ctx.beginPath();
+    for (let i = 0; i < spikes * 2; i++) {
+        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+        const angle = (Math.PI / 2 * 3) + (i * Math.PI / spikes);
+        const x = cx + Math.cos(angle) * radius;
+        const y = cy + Math.sin(angle) * radius;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+
+    if (filled) {
+        ctx.fill();
+    } else {
+        ctx.stroke();
+    }
+}
+
 function drawWidgets() {
     const screenshot = state.screenshots[state.selectedIndex];
     if (!screenshot || !screenshot.widgets || screenshot.widgets.length === 0) return;
@@ -4553,32 +5061,268 @@ function drawWidgets() {
         const x = dims.width * (widget.position.x / 100);
         const y = dims.height * (widget.position.y / 100);
         const style = widget.style || {};
+        const type = widget.type || 'text';
 
-        // Draw widget background
         ctx.save();
 
-        const fontSize = style.fontSize || 14;
-        ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
-        const textWidth = ctx.measureText(widget.text).width;
-        const padding = style.padding || 8;
-        const bgWidth = textWidth + padding * 2;
-        const bgHeight = fontSize + padding * 2;
-        const borderRadius = style.borderRadius || 8;
+        // Apply blur effect for glassmorphism
+        if (style.blur && style.blur > 0) {
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = style.blur;
+            ctx.shadowOffsetY = 4;
+        }
 
-        // Draw rounded rectangle background
-        ctx.fillStyle = style.background || 'rgba(0,0,0,0.7)';
-        ctx.beginPath();
-        roundRect(ctx, x, y, bgWidth, bgHeight, borderRadius);
-        ctx.fill();
-
-        // Draw text
-        ctx.fillStyle = style.color || '#ffffff';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(widget.text, x + padding, y + bgHeight / 2);
+        switch (type) {
+            case 'rating':
+                drawRatingWidget(ctx, x, y, widget, style, dims);
+                break;
+            case 'downloads':
+                drawDownloadsWidget(ctx, x, y, widget, style, dims);
+                break;
+            case 'appOfTheDay':
+                drawAppOfTheDayWidget(ctx, x, y, widget, style, dims);
+                break;
+            case 'featured':
+            case 'editorsChoice':
+                drawBadgeWidget(ctx, x, y, widget, style, dims);
+                break;
+            default:
+                drawTextWidget(ctx, x, y, widget, style, dims);
+        }
 
         ctx.restore();
     });
+}
+
+function drawRatingWidget(ctx, x, y, widget, style, dims) {
+    const fontSize = style.fontSize || 16;
+    const padding = style.padding || 12;
+    const borderRadius = style.borderRadius || 12;
+    const stars = widget.stars || 5;
+    const rating = parseFloat(widget.text) || 4.9;
+
+    // Calculate dimensions
+    const starSize = fontSize * 0.6;
+    const starGap = 3;
+    const starsWidth = stars * (starSize * 2 + starGap);
+
+    ctx.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
+    const ratingTextWidth = ctx.measureText(widget.text).width;
+
+    const totalWidth = ratingTextWidth + 12 + starsWidth + padding * 2;
+    const totalHeight = fontSize + padding * 2;
+
+    // Draw background with glassmorphism
+    ctx.fillStyle = style.background || 'rgba(0, 0, 0, 0.75)';
+    ctx.beginPath();
+    roundRect(ctx, x, y, totalWidth, totalHeight, borderRadius);
+    ctx.fill();
+
+    // Draw border for glass effect
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Reset shadow for text
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    // Draw rating number
+    ctx.fillStyle = style.textColor || '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(widget.text, x + padding, y + totalHeight / 2);
+
+    // Draw stars
+    ctx.fillStyle = style.color || '#FFD700';
+    const starStartX = x + padding + ratingTextWidth + 12;
+    const starY = y + totalHeight / 2;
+
+    for (let i = 0; i < stars; i++) {
+        const starX = starStartX + i * (starSize * 2 + starGap) + starSize;
+        const filled = i < Math.floor(rating);
+        drawStar(ctx, starX, starY, starSize, filled);
+    }
+}
+
+function drawDownloadsWidget(ctx, x, y, widget, style, dims) {
+    const fontSize = style.fontSize || 14;
+    const padding = style.padding || 10;
+    const borderRadius = style.borderRadius || 10;
+
+    // Two-line layout: number on top, "Downloads" below
+    const numberFontSize = fontSize * 1.4;
+    ctx.font = `700 ${numberFontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
+    const numberWidth = ctx.measureText(widget.text).width;
+
+    ctx.font = `400 ${fontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
+    const labelWidth = ctx.measureText(widget.label || 'Downloads').width;
+
+    const totalWidth = Math.max(numberWidth, labelWidth) + padding * 2;
+    const totalHeight = numberFontSize + fontSize + 6 + padding * 2;
+
+    // Draw background
+    ctx.fillStyle = style.background || 'rgba(0, 0, 0, 0.75)';
+    ctx.beginPath();
+    roundRect(ctx, x, y, totalWidth, totalHeight, borderRadius);
+    ctx.fill();
+
+    // Draw border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    // Draw number
+    ctx.fillStyle = style.color || '#FFFFFF';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.font = `700 ${numberFontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
+    ctx.fillText(widget.text, x + totalWidth / 2, y + padding);
+
+    // Draw label
+    ctx.font = `400 ${fontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.fillText(widget.label || 'Downloads', x + totalWidth / 2, y + padding + numberFontSize + 6);
+}
+
+function drawAppOfTheDayWidget(ctx, x, y, widget, style, dims) {
+    const fontSize = style.fontSize || 14;
+    const padding = style.padding || 12;
+    const borderRadius = style.borderRadius || 16;
+
+    // Apple logo + text layout
+    const logoSize = fontSize * 1.2;
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
+    const textWidth = ctx.measureText(widget.text).width;
+
+    const totalWidth = logoSize + 10 + textWidth + padding * 2;
+    const totalHeight = Math.max(logoSize, fontSize) + padding * 2;
+
+    // Draw gradient background
+    const gradient = ctx.createLinearGradient(x, y, x + totalWidth, y + totalHeight);
+    gradient.addColorStop(0, '#667eea');
+    gradient.addColorStop(1, '#764ba2');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    roundRect(ctx, x, y, totalWidth, totalHeight, borderRadius);
+    ctx.fill();
+
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    // Draw Apple logo (simplified)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = `${logoSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('', x + padding, y + totalHeight / 2);
+
+    // Draw text
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
+    ctx.fillText(widget.text, x + padding + logoSize + 10, y + totalHeight / 2);
+}
+
+function drawBadgeWidget(ctx, x, y, widget, style, dims) {
+    const fontSize = style.fontSize || 14;
+    const padding = style.padding || 10;
+    const borderRadius = style.borderRadius || 8;
+
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
+    const textWidth = ctx.measureText(widget.text).width;
+
+    const iconSize = fontSize * 1.1;
+    const hasIcon = widget.icon;
+    const iconSpace = hasIcon ? iconSize + 8 : 0;
+
+    const totalWidth = iconSpace + textWidth + padding * 2;
+    const totalHeight = fontSize + padding * 2;
+
+    // Draw background
+    ctx.fillStyle = style.background || 'rgba(59, 130, 246, 0.9)';
+    ctx.beginPath();
+    roundRect(ctx, x, y, totalWidth, totalHeight, borderRadius);
+    ctx.fill();
+
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    // Draw icon if present
+    ctx.fillStyle = style.color || '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    if (hasIcon) {
+        // Draw checkmark or badge icon
+        ctx.font = `${iconSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+        ctx.fillText('✓', x + padding, y + totalHeight / 2);
+    }
+
+    // Draw text
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
+    ctx.fillText(widget.text, x + padding + iconSpace, y + totalHeight / 2);
+}
+
+function drawTextWidget(ctx, x, y, widget, style, dims) {
+    const fontSize = style.fontSize || 14;
+    const padding = style.padding || 8;
+    const borderRadius = style.borderRadius || 8;
+
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
+    const textWidth = ctx.measureText(widget.text).width;
+
+    const totalWidth = textWidth + padding * 2;
+    const totalHeight = fontSize + padding * 2;
+
+    // Draw background
+    ctx.fillStyle = style.background || 'rgba(0, 0, 0, 0.7)';
+    ctx.beginPath();
+    roundRect(ctx, x, y, totalWidth, totalHeight, borderRadius);
+    ctx.fill();
+
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    // Draw text
+    ctx.fillStyle = style.color || '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(widget.text, x + padding, y + totalHeight / 2);
+}
+
+// Add widget to current screenshot
+function addWidget(presetName, position = { x: 5, y: 5 }) {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) return;
+
+    if (!screenshot.widgets) {
+        screenshot.widgets = [];
+    }
+
+    const preset = WIDGET_PRESETS[presetName] || WIDGET_PRESETS.rating;
+    const widget = {
+        ...JSON.parse(JSON.stringify(preset)),
+        position: { ...position },
+        id: Date.now()
+    };
+
+    screenshot.widgets.push(widget);
+    updateCanvas();
+    return widget;
+}
+
+function removeWidget(widgetId) {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot || !screenshot.widgets) return;
+
+    screenshot.widgets = screenshot.widgets.filter(w => w.id !== widgetId);
+    updateCanvas();
 }
 
 function updateSidePreviews() {
@@ -5332,12 +6076,18 @@ function drawText() {
 
     if (!headline && !subheadline) return;
 
-    const padding = dims.width * 0.08;
-    const textY = text.position === 'top' 
+    // RULE 11: Margins - 6% from left edge
+    const leftPadding = dims.width * 0.08;
+    const rightPadding = dims.width * 0.08;
+    const textY = text.position === 'top'
         ? dims.height * (text.offsetY / 100)
         : dims.height * (1 - text.offsetY / 100);
 
-    ctx.textAlign = 'center';
+    // RULE 2: Check if stacked text mode is enabled
+    const useStackedText = text.stackedText !== false;
+
+    // Set text alignment based on stacked mode
+    ctx.textAlign = useStackedText ? 'left' : 'center';
     ctx.textBaseline = text.position === 'top' ? 'top' : 'bottom';
 
     let currentY = textY;
@@ -5356,32 +6106,44 @@ function drawText() {
             ctx.shadowOffsetY = text.headline.shadow.offsetY || 2;
         }
 
-        const lines = wrapText(ctx, headline, dims.width - padding * 2);
+        // RULE 2: Stacked text - each word on its own line
+        let lines;
+        if (useStackedText) {
+            // Split headline into individual words, each on its own line
+            lines = headline.split(/\s+/).filter(word => word.length > 0);
+        } else {
+            lines = wrapText(ctx, headline, dims.width - leftPadding - rightPadding);
+        }
+
+        // RULE 2: Tight line height (0.90-0.98)
         const lineHeight = text.headlineSize * (text.lineHeight / 100);
 
         if (text.position === 'bottom') {
             currentY -= (lines.length - 1) * lineHeight;
         }
 
+        // Calculate X position based on alignment
+        const textX = useStackedText ? leftPadding : dims.width / 2;
+
         let lastLineY;
         lines.forEach((line, i) => {
             const y = currentY + i * lineHeight;
             lastLineY = y;
-            ctx.fillText(line, dims.width / 2, y);
+            ctx.fillText(line, textX, y);
 
             // Calculate text metrics for decorations
             // When textBaseline is 'top', y is at top of text; when 'bottom', y is at bottom
             const textWidth = ctx.measureText(line).width;
             const fontSize = text.headlineSize;
             const lineThickness = Math.max(2, fontSize * 0.05);
-            const x = dims.width / 2 - textWidth / 2;
+            const decorX = useStackedText ? textX : (dims.width / 2 - textWidth / 2);
 
             // Draw underline
             if (text.headlineUnderline) {
                 const underlineY = text.position === 'top'
                     ? y + fontSize * 0.9  // Below text when baseline is top
                     : y + fontSize * 0.1; // Below text when baseline is bottom
-                ctx.fillRect(x, underlineY, textWidth, lineThickness);
+                ctx.fillRect(decorX, underlineY, textWidth, lineThickness);
             }
 
             // Draw strikethrough
@@ -5389,14 +6151,13 @@ function drawText() {
                 const strikeY = text.position === 'top'
                     ? y + fontSize * 0.4  // Middle of text when baseline is top
                     : y - fontSize * 0.4; // Middle of text when baseline is bottom
-                ctx.fillRect(x, strikeY, textWidth, lineThickness);
+                ctx.fillRect(decorX, strikeY, textWidth, lineThickness);
             }
         });
 
         // Track where subheadline should start (below the bottom edge of headline)
-        // The gap between headline and subheadline should be (lineHeight - fontSize)
-        // This is the "extra" spacing beyond the text itself
-        const gap = lineHeight - text.headlineSize;
+        // RULE 3: margin top 12-20px below headline
+        const gap = Math.max(16, lineHeight - text.headlineSize);
         if (text.position === 'top') {
             // For top: lastLineY is top of last line, add fontSize to get bottom, then add gap
             currentY = lastLineY + text.headlineSize + gap;
@@ -5419,25 +6180,28 @@ function drawText() {
         ctx.font = `${subFontStyle} ${subWeight} ${text.subheadlineSize}px ${text.subheadlineFont || text.headlineFont}`;
         ctx.fillStyle = hexToRgba(text.subheadlineColor, text.subheadlineOpacity / 100);
 
-        const lines = wrapText(ctx, subheadline, dims.width - padding * 2);
+        // Subheadline uses same alignment as headline
+        const subLines = wrapText(ctx, subheadline, dims.width - leftPadding - rightPadding);
         const subLineHeight = text.subheadlineSize * 1.4;
 
-        // Subheadline starts after headline with gap determined by headline lineHeight
-        // For bottom position, switch to 'top' baseline so subheadline draws downward
+        // Subheadline starts after headline with gap
         const subY = currentY;
         if (text.position === 'bottom') {
             ctx.textBaseline = 'top';
         }
 
-        lines.forEach((line, i) => {
+        // Calculate X position based on alignment (same as headline)
+        const subTextX = useStackedText ? leftPadding : dims.width / 2;
+
+        subLines.forEach((line, i) => {
             const y = subY + i * subLineHeight;
-            ctx.fillText(line, dims.width / 2, y);
+            ctx.fillText(line, subTextX, y);
 
             // Calculate text metrics for decorations
             const textWidth = ctx.measureText(line).width;
             const fontSize = text.subheadlineSize;
             const lineThickness = Math.max(2, fontSize * 0.05);
-            const x = dims.width / 2 - textWidth / 2;
+            const subDecorX = useStackedText ? subTextX : (dims.width / 2 - textWidth / 2);
 
             // Draw underline (using 'top' baseline for subheadline)
             if (text.subheadlineUnderline) {
@@ -5519,10 +6283,208 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+// ============================================================================
+// RULE 15: VALIDATION CHECKS BEFORE EXPORT
+// Comprehensive quality assurance before exporting screenshots
+// ============================================================================
+
+function validateScreenshot(screenshotIndex) {
+    const errors = [];
+    const warnings = [];
+    const screenshot = state.screenshots[screenshotIndex];
+
+    if (!screenshot) {
+        errors.push('Screenshot not found');
+        return { valid: false, errors, warnings };
+    }
+
+    const dims = getCanvasDimensions();
+    const settings = screenshot.screenshot || getScreenshotSettings();
+    const text = getTextSettings();
+
+    // RULE 1: Device positioning check (Y should be 70-80%)
+    if (settings.y < 65 || settings.y > 85) {
+        warnings.push(`Device Y position (${settings.y.toFixed(0)}%) is outside optimal range (70-80%)`);
+    }
+
+    // RULE 4: Text-device separation check
+    const separation = validateTextDeviceSeparation(false);
+    if (!separation.valid && separation.gap !== null) {
+        errors.push(`Text-device gap is only ${Math.round(separation.gap)}px (minimum 50px required)`);
+    }
+
+    // RULE 2: Headline length check (2-4 words)
+    const headline = text.headlines[state.selectedLanguage] || text.headlines['en'] || '';
+    if (headline) {
+        const wordCount = headline.split(/\s+/).filter(w => w.length > 0).length;
+        if (wordCount > 4) {
+            warnings.push(`Headline has ${wordCount} words (recommended: 2-4 words)`);
+        }
+        if (wordCount === 1) {
+            warnings.push('Single-word headlines may lack impact');
+        }
+    }
+
+    // RULE 5: Color contrast check (simplified)
+    const bg = screenshot.background || state.background;
+    if (bg && bg.type === 'solid' && bg.color) {
+        const bgLuminance = getRelativeLuminance(bg.color);
+        const textColor = text.headlineColor || '#FFFFFF';
+        const textLuminance = getRelativeLuminance(textColor);
+        const contrastRatio = (Math.max(bgLuminance, textLuminance) + 0.05) /
+                             (Math.min(bgLuminance, textLuminance) + 0.05);
+
+        if (contrastRatio < 4.5) {
+            warnings.push(`Text contrast ratio (${contrastRatio.toFixed(1)}:1) may be too low for readability`);
+        }
+    }
+
+    // RULE 8: Device scale check (58-65% optimal)
+    if (settings.scale < 50 || settings.scale > 75) {
+        warnings.push(`Device scale (${settings.scale}%) is outside optimal range (58-65%)`);
+    }
+
+    // RULE 11: Margin/safe zone check
+    if (settings.x < 5 || settings.x > 95) {
+        warnings.push('Device may be too close to horizontal edge');
+    }
+
+    // Check for missing image
+    const img = getScreenshotImage(screenshot);
+    if (!img) {
+        errors.push('Screenshot image is missing or failed to load');
+    }
+
+    return {
+        valid: errors.length === 0,
+        errors,
+        warnings,
+        index: screenshotIndex
+    };
+}
+
+function getRelativeLuminance(hex) {
+    // Convert hex to RGB and calculate relative luminance
+    if (!hex || hex.length < 7) return 0.5;
+
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+    const sRGB = [r, g, b].map(c =>
+        c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+    );
+
+    return 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
+}
+
+function validateAllScreenshots() {
+    const results = [];
+    let allValid = true;
+
+    for (let i = 0; i < state.screenshots.length; i++) {
+        // Temporarily switch to this screenshot for validation
+        const originalIndex = state.selectedIndex;
+        state.selectedIndex = i;
+
+        const result = validateScreenshot(i);
+        results.push(result);
+
+        if (!result.valid) allValid = false;
+
+        // Restore original index
+        state.selectedIndex = originalIndex;
+    }
+
+    return { allValid, results };
+}
+
+// RULE 10: Set consistency validation
+function validateSetConsistency() {
+    const issues = [];
+
+    if (state.screenshots.length < 2) {
+        return { consistent: true, issues };
+    }
+
+    // Check font consistency
+    const fonts = new Set();
+    const fontSizes = new Set();
+
+    state.screenshots.forEach((s, i) => {
+        const text = s.text || state.text;
+        fonts.add(text.headlineFont);
+        fontSizes.add(text.headlineSize);
+    });
+
+    if (fonts.size > 2) {
+        issues.push(`Multiple headline fonts used across screenshots (${fonts.size} different fonts)`);
+    }
+
+    if (fontSizes.size > 2) {
+        issues.push('Inconsistent headline sizes across screenshots');
+    }
+
+    // Check device scale consistency
+    const scales = state.screenshots.map(s => s.screenshot?.scale || 62);
+    const scaleVariance = Math.max(...scales) - Math.min(...scales);
+    if (scaleVariance > 10) {
+        issues.push(`Device scales vary by ${scaleVariance}% across screenshots`);
+    }
+
+    return {
+        consistent: issues.length === 0,
+        issues
+    };
+}
+
+function showValidationResults(validation) {
+    const { allValid, results } = validation;
+    const consistency = validateSetConsistency();
+
+    let message = '';
+
+    if (allValid && consistency.consistent) {
+        console.log('[Validation] All screenshots passed validation checks');
+        return true;
+    }
+
+    // Build error message
+    results.forEach((result, i) => {
+        if (result.errors.length > 0 || result.warnings.length > 0) {
+            message += `\nScreenshot ${i + 1}:\n`;
+            result.errors.forEach(e => message += `  ❌ ${e}\n`);
+            result.warnings.forEach(w => message += `  ⚠️ ${w}\n`);
+        }
+    });
+
+    if (!consistency.consistent) {
+        message += '\nConsistency Issues:\n';
+        consistency.issues.forEach(i => message += `  ⚠️ ${i}\n`);
+    }
+
+    console.warn('[Validation]' + message);
+
+    // For critical errors, ask user to confirm
+    const hasErrors = results.some(r => r.errors.length > 0);
+    if (hasErrors) {
+        return confirm('Some screenshots have issues:\n' + message + '\n\nExport anyway?');
+    }
+
+    return true;
+}
+
 function exportCurrent() {
     if (state.screenshots.length === 0) {
         alert('Please upload a screenshot first');
         return;
+    }
+
+    // RULE 15: Validate before export
+    const validation = validateScreenshot(state.selectedIndex);
+    if (!validation.valid) {
+        const proceed = showValidationResults({ allValid: false, results: [validation] });
+        if (!proceed) return;
     }
 
     // Ensure canvas is up-to-date (especially important for 3D mode)
@@ -5538,6 +6500,13 @@ async function exportAll() {
     if (state.screenshots.length === 0) {
         alert('Please upload screenshots first');
         return;
+    }
+
+    // RULE 15: Validate all screenshots before export
+    const validation = validateAllScreenshots();
+    if (!validation.allValid) {
+        const proceed = showValidationResults(validation);
+        if (!proceed) return;
     }
 
     // Check if project has multiple languages configured
