@@ -1,99 +1,74 @@
 // LLM Provider Configuration
-// Centralized configuration for all AI translation providers and models
+// Gemini 3.0 - Google's latest AI model
 
 const llmProviders = {
-    anthropic: {
-        name: 'Anthropic (Claude)',
-        keyPrefix: 'sk-ant-',
-        storageKey: 'claudeApiKey',
-        modelStorageKey: 'anthropicModel',
-        models: [
-            { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5 ($)' },
-            { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5 ($$)' },
-            { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5 ($$$)' }
-        ],
-        defaultModel: 'claude-sonnet-4-5-20250929'
-    },
-    openai: {
-        name: 'OpenAI (GPT)',
-        keyPrefix: 'sk-',
-        storageKey: 'openaiApiKey',
-        modelStorageKey: 'openaiModel',
-        models: [
-            { id: 'gpt-5.1-2025-11-13', name: 'GPT-5.1 ($$$)' },
-            { id: 'gpt-5-mini-2025-08-07', name: 'GPT-5 Mini ($$)' },
-            { id: 'gpt-5-nano-2025-08-07', name: 'GPT-5 Nano ($)' }
-        ],
-        defaultModel: 'gpt-5-mini-2025-08-07'
-    },
     google: {
-        name: 'Google (Gemini)',
+        name: 'Google Gemini 3.0',
         keyPrefix: 'AIza',
         storageKey: 'googleApiKey',
         modelStorageKey: 'googleModel',
         models: [
-            { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite ($)' },
-            { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash ($$)' },
-            { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro ($$$)' }
+            { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro (Recommended)' },
+            { id: 'gemini-3-pro-image-preview', name: 'Gemini 3.0 Pro Image (For visuals)' }
         ],
-        defaultModel: 'gemini-2.5-flash'
+        defaultModel: 'gemini-3-pro-preview'
     }
 };
 
+// Default provider is always Google
+const DEFAULT_PROVIDER = 'google';
+
 /**
- * Get the selected model for a provider
- * @param {string} provider - Provider key (anthropic, openai, google)
+ * Get the selected model
  * @returns {string} - Model ID
  */
-function getSelectedModel(provider) {
-    const config = llmProviders[provider];
-    if (!config) return null;
+function getSelectedModel() {
+    const config = llmProviders.google;
     return localStorage.getItem(config.modelStorageKey) || config.defaultModel;
 }
 
 /**
- * Get the selected provider
+ * Get the selected provider (always google)
  * @returns {string} - Provider key
  */
 function getSelectedProvider() {
-    return localStorage.getItem('aiProvider') || 'anthropic';
+    return 'google';
 }
 
 /**
- * Get API key for a provider
- * @param {string} provider - Provider key
+ * Get API key
  * @returns {string|null} - API key or null
  */
-function getApiKey(provider) {
-    const config = llmProviders[provider];
-    if (!config) return null;
-    return localStorage.getItem(config.storageKey);
+function getApiKey() {
+    return localStorage.getItem(llmProviders.google.storageKey);
 }
 
 /**
- * Validate API key format for a provider
- * @param {string} provider - Provider key
+ * Validate API key format
  * @param {string} key - API key to validate
  * @returns {boolean} - Whether key format is valid
  */
-function validateApiKeyFormat(provider, key) {
-    const config = llmProviders[provider];
-    if (!config) return false;
-    return key.startsWith(config.keyPrefix);
+function validateApiKeyFormat(key) {
+    return key && key.startsWith(llmProviders.google.keyPrefix);
 }
 
 /**
  * Generate HTML options for model select dropdown
- * @param {string} provider - Provider key
  * @param {string} selectedModel - Currently selected model ID (optional)
  * @returns {string} - HTML string of option elements
  */
-function generateModelOptions(provider, selectedModel = null) {
-    const config = llmProviders[provider];
-    if (!config) return '';
-
-    const selected = selectedModel || getSelectedModel(provider);
+function generateModelOptions(selectedModel = null) {
+    const config = llmProviders.google;
+    const selected = selectedModel || getSelectedModel();
     return config.models.map(model =>
         `<option value="${model.id}"${model.id === selected ? ' selected' : ''}>${model.name}</option>`
     ).join('\n');
 }
+
+// Export for use
+window.llmProviders = llmProviders;
+window.getSelectedModel = getSelectedModel;
+window.getSelectedProvider = getSelectedProvider;
+window.getApiKey = getApiKey;
+window.validateApiKeyFormat = validateApiKeyFormat;
+window.generateModelOptions = generateModelOptions;

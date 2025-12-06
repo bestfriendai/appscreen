@@ -1587,6 +1587,58 @@ function setupEventListeners() {
     // File upload (upload zone is now in screenshot list, created dynamically in updateScreenshotList)
     fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
+    // Main upload button in empty state
+    const mainUploadBtn = document.getElementById('main-upload-btn');
+    if (mainUploadBtn) {
+        mainUploadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+    }
+
+    // Make the empty state area clickable and droppable
+    noScreenshot.addEventListener('click', () => fileInput.click());
+
+    noScreenshot.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        noScreenshot.classList.add('dragover');
+    });
+
+    noScreenshot.addEventListener('dragleave', () => {
+        noScreenshot.classList.remove('dragover');
+    });
+
+    noScreenshot.addEventListener('drop', (e) => {
+        e.preventDefault();
+        noScreenshot.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            handleFiles(e.dataTransfer.files);
+        }
+    });
+
+    // Make entire canvas area a drop zone
+    const canvasWrapper = document.getElementById('canvas-wrapper');
+    canvasWrapper.addEventListener('dragover', (e) => {
+        if (e.dataTransfer.types.includes('Files')) {
+            e.preventDefault();
+            canvasWrapper.classList.add('drop-active');
+        }
+    });
+
+    canvasWrapper.addEventListener('dragleave', (e) => {
+        if (!canvasWrapper.contains(e.relatedTarget)) {
+            canvasWrapper.classList.remove('drop-active');
+        }
+    });
+
+    canvasWrapper.addEventListener('drop', (e) => {
+        if (e.dataTransfer.types.includes('Files')) {
+            e.preventDefault();
+            canvasWrapper.classList.remove('drop-active');
+            handleFiles(e.dataTransfer.files);
+        }
+    });
+
     // Make entire screenshot list a drop zone
     screenshotList.addEventListener('dragover', (e) => {
         // Only handle file drops, not internal screenshot reordering
@@ -4481,8 +4533,52 @@ function updateCanvas() {
     // Draw text
     drawText();
 
+    // Draw widgets if any
+    drawWidgets();
+
+    // Draw uploaded elements (logos, etc.)
+    drawElements();
+
     // Update side previews
     updateSidePreviews();
+}
+
+function drawWidgets() {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot || !screenshot.widgets || screenshot.widgets.length === 0) return;
+
+    const dims = getCanvasDimensions();
+
+    screenshot.widgets.forEach(widget => {
+        const x = dims.width * (widget.position.x / 100);
+        const y = dims.height * (widget.position.y / 100);
+        const style = widget.style || {};
+
+        // Draw widget background
+        ctx.save();
+
+        const fontSize = style.fontSize || 14;
+        ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif`;
+        const textWidth = ctx.measureText(widget.text).width;
+        const padding = style.padding || 8;
+        const bgWidth = textWidth + padding * 2;
+        const bgHeight = fontSize + padding * 2;
+        const borderRadius = style.borderRadius || 8;
+
+        // Draw rounded rectangle background
+        ctx.fillStyle = style.background || 'rgba(0,0,0,0.7)';
+        ctx.beginPath();
+        roundRect(ctx, x, y, bgWidth, bgHeight, borderRadius);
+        ctx.fill();
+
+        // Draw text
+        ctx.fillStyle = style.color || '#ffffff';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(widget.text, x + padding, y + bgHeight / 2);
+
+        ctx.restore();
+    });
 }
 
 function updateSidePreviews() {
@@ -5137,6 +5233,30 @@ function drawScreenshot() {
     // Draw rounded rectangle with screenshot
     const radius = settings.cornerRadius * (imgWidth / 400); // Scale radius with image
 
+    // Draw glassmorphism card effect if enabled
+    if (screenshot.glass && screenshot.glass.enabled) {
+        const glassSettings = screenshot.glass;
+        const padding = imgWidth * 0.08; // 8% padding around the screenshot
+        const glassX = x - padding;
+        const glassY = y - padding;
+        const glassWidth = imgWidth + padding * 2;
+        const glassHeight = imgHeight + padding * 2;
+        const glassRadius = radius + padding * 0.5;
+
+        // Draw frosted glass background
+        ctx.save();
+        ctx.beginPath();
+        roundRect(ctx, glassX, glassY, glassWidth, glassHeight, glassRadius);
+        ctx.fillStyle = glassSettings.background || 'rgba(255,255,255,0.1)';
+        ctx.fill();
+
+        // Draw glass border
+        ctx.strokeStyle = glassSettings.border || 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+    }
+
     // Draw shadow first (needs a filled shape, not clipped)
     if (settings.shadow.enabled) {
         const shadowColor = hexToRgba(settings.shadow.color, settings.shadow.opacity / 100);
@@ -5228,6 +5348,14 @@ function drawText() {
         ctx.font = `${fontStyle} ${text.headlineWeight} ${text.headlineSize}px ${text.headlineFont}`;
         ctx.fillStyle = text.headlineColor;
 
+        // Apply text shadow if enabled
+        if (text.headline?.shadow?.enabled) {
+            ctx.shadowColor = text.headline.shadow.color || 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = text.headline.shadow.blur || 10;
+            ctx.shadowOffsetX = text.headline.shadow.offsetX || 2;
+            ctx.shadowOffsetY = text.headline.shadow.offsetY || 2;
+        }
+
         const lines = wrapText(ctx, headline, dims.width - padding * 2);
         const lineHeight = text.headlineSize * (text.lineHeight / 100);
 
@@ -5276,6 +5404,12 @@ function drawText() {
             // For bottom: lastLineY is already the bottom of last line, just add gap
             currentY = lastLineY + gap;
         }
+
+        // Reset shadow after headline
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
     }
 
     // Draw subheadline (always below headline visually)
@@ -5581,6 +5715,1223 @@ async function exportAllLanguages() {
     link.click();
     URL.revokeObjectURL(link.href);
 }
+
+// ======================================
+// NEW COMBINED FEATURES INTEGRATION
+// ======================================
+
+// Magic Design Button Handler - Show Input Modal First
+document.getElementById('magic-design-btn')?.addEventListener('click', async () => {
+    if (state.screenshots.length === 0) {
+        alert('Please upload at least one screenshot first.');
+        return;
+    }
+
+    // Check for API key
+    const provider = localStorage.getItem('aiProvider') || 'google';
+    const apiKey = localStorage.getItem(
+        provider === 'anthropic' ? 'claudeApiKey' :
+            provider === 'openai' ? 'openaiApiKey' :
+                'googleApiKey'
+    );
+
+    if (!apiKey) {
+        alert(`Please add your ${provider === 'google' ? 'Gemini' : provider === 'anthropic' ? 'Claude' : 'OpenAI'} API key in Settings first.`);
+        document.getElementById('settings-btn')?.click();
+        return;
+    }
+
+    // Show input modal
+    const inputModal = document.getElementById('magic-design-input-modal');
+    const appNameInput = document.getElementById('magic-app-name');
+    const appDescInput = document.getElementById('magic-app-description');
+
+    // Pre-fill with project name if available
+    appNameInput.value = state.projectName || '';
+    appDescInput.value = state.appDescription || '';
+
+    // Populate language dropdown
+    const languageSelect = document.getElementById('magic-language');
+    if (languageSelect) {
+        languageSelect.innerHTML = '';
+        const languages = state.languages || ['en'];
+        languages.forEach(lang => {
+            const option = document.createElement('option');
+            option.value = lang;
+            option.textContent = window.getLanguageName ? window.getLanguageName(lang) : lang;
+            if (lang === state.currentLanguage) option.selected = true;
+            languageSelect.appendChild(option);
+        });
+    }
+
+    inputModal.classList.add('active');
+    appNameInput.focus();
+});
+
+// Cancel button on input modal
+document.getElementById('magic-input-cancel')?.addEventListener('click', () => {
+    document.getElementById('magic-design-input-modal').classList.remove('active');
+});
+
+// Start button on input modal - runs the AI pipeline
+document.getElementById('magic-input-start')?.addEventListener('click', async () => {
+    const inputModal = document.getElementById('magic-design-input-modal');
+    const appName = document.getElementById('magic-app-name')?.value.trim() || '';
+    const appDescription = document.getElementById('magic-app-description')?.value.trim() || '';
+
+    // Get the new AI options
+    const category = document.getElementById('magic-category')?.value || 'auto';
+    const theme = document.getElementById('magic-theme')?.value || 'auto';
+    const headlineStyle = document.getElementById('magic-headline-style')?.value || 'short_punchy';
+    const bgType = document.querySelector('input[name="magic-bg-type"]:checked')?.value || 'gradient';
+
+    // Hide input modal
+    inputModal.classList.remove('active');
+
+    // Use the new AI Engine if available
+    if (window.AIEngine) {
+        console.log('[MagicDesign] Using new AI Engine with options:', { category, theme, headlineStyle, bgType });
+
+        // Store app info
+        if (appName) state.projectName = appName;
+        if (appDescription) state.appDescription = appDescription;
+
+        // Call the new AI Engine
+        await window.AIEngine.magicDesign({
+            category: category,
+            theme: theme,
+            headlineStyle: headlineStyle,
+            generateBackgroundImages: bgType === 'image'
+        });
+
+        return;
+    }
+
+    // Fallback to old AI Agents system
+    console.log('[MagicDesign] Falling back to old AI Agents system');
+
+    if (!appName) {
+        alert('Please enter your app name.');
+        inputModal.classList.add('active');
+        document.getElementById('magic-app-name').focus();
+        return;
+    }
+
+    if (!appDescription) {
+        alert('Please enter a description of your app.');
+        inputModal.classList.add('active');
+        document.getElementById('magic-app-description').focus();
+        return;
+    }
+
+    const modal = document.getElementById('magic-design-modal');
+    const statusEl = document.getElementById('magic-design-status');
+    const progressBar = document.getElementById('magic-progress-bar');
+    const stages = document.querySelectorAll('.magic-stage');
+
+    modal.classList.add('active');
+    progressBar.style.width = '0%';
+    stages.forEach(s => s.classList.remove('active', 'completed'));
+
+    let cancelled = false;
+    const cancelHandler = () => {
+        cancelled = true;
+        modal.classList.remove('active');
+    };
+    document.getElementById('magic-design-cancel')?.addEventListener('click', cancelHandler, { once: true });
+
+    try {
+        // Run Magic Design pipeline with user input
+        const result = await window.AIAgents?.runMagicDesign(
+            appName,
+            appDescription,
+            state.screenshots,
+            (message) => {
+                if (!cancelled) statusEl.textContent = message;
+            },
+            (stage, index, total) => {
+                if (cancelled) return;
+                const percent = ((index + 1) / total) * 100;
+                progressBar.style.width = `${percent}%`;
+
+                // Update stage indicators
+                stages.forEach((s, i) => {
+                    if (i < index) {
+                        s.classList.remove('active');
+                        s.classList.add('completed');
+                    } else if (i === index) {
+                        s.classList.add('active');
+                        s.classList.remove('completed');
+                    } else {
+                        s.classList.remove('active', 'completed');
+                    }
+                });
+            }
+        );
+
+        if (!cancelled && result) {
+            // Apply the design plan
+            window.AIAgents?.applyDesignPlan(result, state);
+
+            // Store the app info
+            state.projectName = appName;
+            state.appDescription = appDescription;
+
+            updateCanvas();
+            syncUIWithState();
+
+            // Save undo state
+            window.UndoRedo?.saveState(state, 'Magic Design applied');
+
+            statusEl.textContent = 'Design applied successfully!';
+            stages.forEach(s => {
+                s.classList.remove('active');
+                s.classList.add('completed');
+            });
+            progressBar.style.width = '100%';
+
+            await new Promise(r => setTimeout(r, 1500));
+        }
+    } catch (error) {
+        console.error('Magic Design error:', error);
+        statusEl.textContent = `Error: ${error.message}`;
+        await new Promise(r => setTimeout(r, 3000));
+    }
+
+    modal.classList.remove('active');
+});
+
+// Undo/Redo Button Handlers
+document.getElementById('undo-btn')?.addEventListener('click', () => {
+    const previousState = window.UndoRedo?.undo();
+    if (previousState) {
+        // Apply the state
+        Object.assign(state, previousState);
+        updateCanvas();
+        syncUIWithState();
+    }
+});
+
+document.getElementById('redo-btn')?.addEventListener('click', () => {
+    const nextState = window.UndoRedo?.redo();
+    if (nextState) {
+        Object.assign(state, nextState);
+        updateCanvas();
+        syncUIWithState();
+    }
+});
+
+// Initialize Undo/Redo keyboard shortcuts
+window.UndoRedo?.setupKeyboardShortcuts((newState) => {
+    Object.assign(state, newState);
+    updateCanvas();
+    syncUIWithState();
+});
+
+// Initialize onboarding for first-time users
+setTimeout(() => {
+    window.Onboarding?.initialize(true);
+}, 2000);
+
+// ============================================
+// Layout Picker Functionality
+// ============================================
+
+const LAYOUT_CATEGORIES = {
+    hero: ['hero_large', 'classic', 'offset_right', 'offset_left', 'floating_hero', 'poster_hero'],
+    panoramic: ['panoramic_right', 'panoramic_left', 'panoramic_center_right'],
+    dual: ['duo_overlap', 'duo_side_by_side', 'double_phones'],
+    zoom: ['zoom_top', 'zoom_bottom', 'tilted_dynamic', 'isometric_stack'],
+    minimal: ['minimal_type', 'minimal_float', 'magazine_cover', 'bento_grid', 'off_axis_left', 'card_focus']
+};
+
+function generateLayoutSVG(layout) {
+    const device = layout.device;
+    const scale = device.scale || 0.7;
+    const x = 20 + (device.x || 0) * 0.3;
+    const y = 25 + (device.y || 10) * 0.3;
+    const rotation = device.rotation || 0;
+    const width = 16 * scale;
+    const height = 28 * scale;
+
+    let svg = `<svg viewBox="0 0 40 60" fill="none" stroke="currentColor" stroke-width="1.5">`;
+    svg += `<rect x="${x - width/2}" y="${y - height/2}" width="${width}" height="${height}" rx="2" transform="rotate(${rotation} ${x} ${y})"/>`;
+
+    if (layout.showSecondaryDevice && layout.secondaryDevice) {
+        const sd = layout.secondaryDevice;
+        const sx = 20 + (sd.x || 0) * 0.3;
+        const sy = 25 + (sd.y || 10) * 0.3;
+        const swidth = 16 * (sd.scale || 0.6);
+        const sheight = 28 * (sd.scale || 0.6);
+        svg += `<rect x="${sx - swidth/2}" y="${sy - sheight/2}" width="${swidth}" height="${sheight}" rx="2" transform="rotate(${sd.rotation || 0} ${sx} ${sy})" opacity="0.6"/>`;
+    }
+
+    svg += `</svg>`;
+    return svg;
+}
+
+function populateLayoutGrid(category = 'hero') {
+    const grid = document.getElementById('layout-grid');
+    if (!grid || !window.LayoutEngine) return;
+
+    const layoutIds = LAYOUT_CATEGORIES[category] || LAYOUT_CATEGORIES.hero;
+    grid.innerHTML = '';
+
+    layoutIds.forEach(layoutId => {
+        const layout = window.LayoutEngine.getLayoutConfig(layoutId);
+        if (!layout) return;
+
+        const item = document.createElement('div');
+        item.className = 'layout-item';
+        item.dataset.layout = layoutId;
+        item.innerHTML = `
+            ${generateLayoutSVG(layout)}
+            <span class="layout-item-name">${layout.name}</span>
+        `;
+        item.addEventListener('click', () => applyLayoutToScreenshot(layoutId));
+        grid.appendChild(item);
+    });
+}
+
+function applyLayoutToScreenshot(layoutId) {
+    const layout = window.LayoutEngine?.getLayoutConfig(layoutId);
+    if (!layout) return;
+
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) return;
+
+    // Apply device settings
+    screenshot.scale = layout.device.scale * 100;
+    screenshot.x = 50 + layout.device.x;
+    screenshot.y = 50 + layout.device.y;
+    screenshot.rotation = layout.device.rotation;
+    screenshot.layout = layoutId;
+
+    // Apply text settings if defined in layout
+    const textSettings = getTextSettings();
+    if (layout.text) {
+        if (layout.text.offsetY !== undefined) {
+            textSettings.offsetY = layout.text.offsetY;
+        }
+        if (layout.text.position) {
+            textSettings.position = layout.text.position;
+        }
+    }
+
+    updateCanvas();
+    syncUIWithState();
+
+    // Mark as selected
+    document.querySelectorAll('.layout-item').forEach(el => el.classList.remove('selected'));
+    document.querySelector(`.layout-item[data-layout="${layoutId}"]`)?.classList.add('selected');
+}
+
+// Layout picker dropdown
+document.getElementById('layout-preset-trigger')?.addEventListener('click', () => {
+    document.getElementById('layout-preset-dropdown')?.classList.toggle('open');
+    if (document.getElementById('layout-preset-dropdown')?.classList.contains('open')) {
+        populateLayoutGrid('hero');
+    }
+});
+
+// Layout category tabs
+document.querySelectorAll('.layout-cat-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.layout-cat-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        populateLayoutGrid(tab.dataset.category);
+    });
+});
+
+// ============================================
+// Theme Selector Functionality
+// ============================================
+
+document.getElementById('theme-selector')?.addEventListener('change', (e) => {
+    const themeId = e.target.value;
+    if (!themeId || !window.DesignThemes) return;
+
+    const theme = window.DesignThemes.getTheme(themeId);
+    if (!theme) return;
+
+    // Apply theme to current screenshot
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) return;
+
+    // Apply background
+    if (theme.background) {
+        screenshot.background = {
+            type: 'gradient',
+            gradient: theme.background.gradient || `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.secondary} 100%)`,
+            stops: theme.background.stops || [
+                { color: theme.colors.primary, position: 0 },
+                { color: theme.colors.secondary, position: 100 }
+            ],
+            angle: theme.background.angle || 135
+        };
+    }
+
+    // Apply text colors
+    const textSettings = getTextSettings();
+    if (theme.text) {
+        textSettings.headline.color = theme.text.color || theme.colors.text || '#ffffff';
+        textSettings.headline.font = theme.text.fontFamily || textSettings.headline.font;
+    }
+
+    updateCanvas();
+    syncUIWithState();
+});
+
+// ============================================
+// Background Preset Gallery Functionality
+// ============================================
+
+function populateBgPresetGrid(category = 'all') {
+    const grid = document.getElementById('bg-preset-grid');
+    if (!grid || !window.BackgroundPresets) return;
+
+    const presets = category === 'all'
+        ? window.BackgroundPresets.getAllPresets()
+        : window.BackgroundPresets.getPresetsForCategory(category);
+
+    grid.innerHTML = '';
+
+    (presets || []).slice(0, 20).forEach(preset => {
+        const item = document.createElement('div');
+        item.className = 'bg-preset-item';
+        item.dataset.preset = preset.id;
+        item.dataset.name = preset.name;
+
+        // Generate gradient background
+        const colors = preset.colors;
+        const gradient = preset.themeMode === 'dark'
+            ? `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary || colors.primary} 100%)`
+            : `linear-gradient(135deg, ${colors.background || colors.primary} 0%, ${colors.primary} 100%)`;
+
+        item.style.background = gradient;
+
+        item.addEventListener('click', () => applyBgPreset(preset));
+        grid.appendChild(item);
+    });
+}
+
+function applyBgPreset(preset) {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) return;
+
+    const colors = preset.colors;
+    screenshot.background = {
+        type: 'gradient',
+        gradient: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary || colors.background} 100%)`,
+        stops: [
+            { color: colors.primary, position: 0 },
+            { color: colors.secondary || colors.background, position: 100 }
+        ],
+        angle: 135
+    };
+
+    // Adjust text color based on theme mode
+    const textSettings = getTextSettings();
+    textSettings.headline.color = preset.themeMode === 'dark' ? '#ffffff' : '#1a1a1a';
+
+    updateCanvas();
+    syncUIWithState();
+
+    // Mark as selected
+    document.querySelectorAll('.bg-preset-item').forEach(el => el.classList.remove('selected'));
+    document.querySelector(`.bg-preset-item[data-preset="${preset.id}"]`)?.classList.add('selected');
+}
+
+// Background preset dropdown
+document.getElementById('bg-preset-trigger')?.addEventListener('click', () => {
+    document.getElementById('bg-preset-dropdown')?.classList.toggle('open');
+    if (document.getElementById('bg-preset-dropdown')?.classList.contains('open')) {
+        populateBgPresetGrid('all');
+    }
+});
+
+// Background preset category filter
+document.getElementById('bg-preset-category')?.addEventListener('change', (e) => {
+    populateBgPresetGrid(e.target.value);
+});
+
+// ============================================
+// Widget Palette Functionality
+// ============================================
+
+document.getElementById('widgets-btn')?.addEventListener('click', () => {
+    document.getElementById('widget-palette')?.classList.toggle('open');
+});
+
+document.getElementById('widget-palette-close')?.addEventListener('click', () => {
+    document.getElementById('widget-palette')?.classList.remove('open');
+});
+
+document.querySelectorAll('.widget-item').forEach(item => {
+    item.addEventListener('click', () => {
+        const widgetType = item.dataset.widget;
+        addWidgetToScreenshot(widgetType);
+    });
+});
+
+function addWidgetToScreenshot(widgetType) {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) return;
+
+    if (!screenshot.widgets) {
+        screenshot.widgets = [];
+    }
+
+    const widgetTexts = {
+        rating: '4.9 ★',
+        award: 'App of the Day',
+        download: '1M+ Downloads',
+        featured: 'Featured',
+        secure: 'Secure',
+        verified: 'Verified',
+        privacy: 'Privacy First',
+        new: 'NEW',
+        free: 'FREE',
+        pro: 'PRO',
+        offline: 'Works Offline',
+        sync: 'Cloud Sync'
+    };
+
+    const widget = {
+        id: Date.now().toString(),
+        type: widgetType,
+        text: widgetTexts[widgetType] || widgetType,
+        position: { x: 10 + screenshot.widgets.length * 5, y: 5 + screenshot.widgets.length * 5 },
+        style: {
+            background: 'rgba(0,0,0,0.7)',
+            color: '#ffffff',
+            borderRadius: 8,
+            padding: 8,
+            fontSize: 14
+        }
+    };
+
+    screenshot.widgets.push(widget);
+    updateCanvas();
+}
+
+document.getElementById('widget-clear-btn')?.addEventListener('click', () => {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (screenshot) {
+        screenshot.widgets = [];
+        updateCanvas();
+    }
+});
+
+// ============================================
+// Text Shadow Functionality
+// ============================================
+
+// Text shadow toggle
+document.getElementById('text-shadow-toggle')?.addEventListener('click', function() {
+    this.classList.toggle('active');
+    const options = document.getElementById('text-shadow-options');
+    const row = this.closest('.toggle-row');
+
+    if (this.classList.contains('active')) {
+        options.style.display = 'block';
+        row?.classList.remove('collapsed');
+    } else {
+        options.style.display = 'none';
+        row?.classList.add('collapsed');
+    }
+
+    updateTextShadow();
+});
+
+function updateTextShadow() {
+    const enabled = document.getElementById('text-shadow-toggle')?.classList.contains('active');
+    const textSettings = getTextSettings();
+
+    if (enabled) {
+        const color = document.getElementById('text-shadow-color')?.value || '#000000';
+        const blur = parseInt(document.getElementById('text-shadow-blur')?.value || 10);
+        const opacity = parseInt(document.getElementById('text-shadow-opacity')?.value || 50) / 100;
+        const x = parseInt(document.getElementById('text-shadow-x')?.value || 2);
+        const y = parseInt(document.getElementById('text-shadow-y')?.value || 2);
+
+        // Convert hex to rgba
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+
+        textSettings.headline.shadow = {
+            enabled: true,
+            color: `rgba(${r}, ${g}, ${b}, ${opacity})`,
+            blur: blur,
+            offsetX: x,
+            offsetY: y
+        };
+    } else {
+        textSettings.headline.shadow = { enabled: false };
+    }
+
+    updateCanvas();
+}
+
+// Text shadow control listeners
+['text-shadow-color', 'text-shadow-blur', 'text-shadow-opacity', 'text-shadow-x', 'text-shadow-y'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', (e) => {
+        // Update value display
+        const valueEl = document.getElementById(id + '-value');
+        if (valueEl) {
+            if (id === 'text-shadow-color') {
+                document.getElementById('text-shadow-color-hex').value = e.target.value;
+            } else if (id.includes('opacity')) {
+                valueEl.textContent = e.target.value + '%';
+            } else {
+                valueEl.textContent = e.target.value + 'px';
+            }
+        }
+        updateTextShadow();
+    });
+});
+
+// Hex input sync
+document.getElementById('text-shadow-color-hex')?.addEventListener('input', (e) => {
+    const hex = e.target.value;
+    if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+        document.getElementById('text-shadow-color').value = hex;
+        updateTextShadow();
+    }
+});
+
+// ============================================
+// AI Background Generator
+// ============================================
+
+document.getElementById('ai-bg-generate')?.addEventListener('click', async () => {
+    const btn = document.getElementById('ai-bg-generate');
+    const prompt = document.getElementById('ai-bg-prompt')?.value || '';
+    const style = document.getElementById('ai-bg-style')?.value || 'abstract';
+
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z"/></svg> Generating...`;
+
+    try {
+        const colors = await generateBackgroundColors(prompt, style);
+        applyGeneratedBackground(colors);
+    } catch (error) {
+        console.error('Background generation failed:', error);
+        alert('Failed to generate background. Please try again.');
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z"/></svg> Generate`;
+    }
+});
+
+async function generateBackgroundColors(prompt, style) {
+    const stylePrompts = {
+        abstract: 'abstract flowing shapes',
+        gradient: 'smooth color transition',
+        geometric: 'geometric patterns',
+        nature: 'natural organic colors',
+        minimal: 'clean minimal aesthetic',
+        tech: 'futuristic cyber neon'
+    };
+
+    const fullPrompt = `Generate a color palette for an App Store screenshot background.
+Style: ${stylePrompts[style] || style}
+User request: ${prompt || 'professional app background'}
+
+Return ONLY a JSON object with exactly this format, no other text:
+{"primary": "#hexcolor", "secondary": "#hexcolor", "accent": "#hexcolor", "angle": number}
+
+The colors should work well together and be suitable for app marketing. Use the angle (0-360) for gradient direction.`;
+
+    try {
+        const response = await callLLM(fullPrompt, { maxTokens: 150 });
+        const jsonMatch = response.match(/\{[^}]+\}/);
+        if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]);
+        }
+    } catch (e) {
+        console.error('LLM call failed:', e);
+    }
+
+    // Fallback colors based on style
+    const fallbacks = {
+        abstract: { primary: '#667eea', secondary: '#764ba2', accent: '#f093fb', angle: 135 },
+        gradient: { primary: '#4facfe', secondary: '#00f2fe', accent: '#43e97b', angle: 135 },
+        geometric: { primary: '#1a1a2e', secondary: '#16213e', accent: '#0f3460', angle: 180 },
+        nature: { primary: '#134e5e', secondary: '#71b280', accent: '#a8e063', angle: 135 },
+        minimal: { primary: '#f5f7fa', secondary: '#c3cfe2', accent: '#667eea', angle: 135 },
+        tech: { primary: '#0f0c29', secondary: '#302b63', accent: '#24243e', angle: 135 }
+    };
+    return fallbacks[style] || fallbacks.abstract;
+}
+
+function applyGeneratedBackground(colors) {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) return;
+
+    screenshot.background = {
+        type: 'gradient',
+        gradient: `linear-gradient(${colors.angle}deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+        stops: [
+            { color: colors.primary, position: 0 },
+            { color: colors.secondary, position: 100 }
+        ],
+        angle: colors.angle
+    };
+
+    // Auto-adjust text color based on background brightness
+    const textSettings = getTextSettings();
+    const brightness = getColorBrightness(colors.primary);
+    textSettings.headline.color = brightness < 128 ? '#ffffff' : '#1a1a1a';
+
+    updateCanvas();
+    syncUIWithState();
+
+    // Switch to gradient view
+    document.querySelectorAll('#bg-type-selector button').forEach(b => b.classList.remove('active'));
+    document.querySelector('#bg-type-selector button[data-type="gradient"]')?.classList.add('active');
+    document.getElementById('gradient-options').style.display = 'block';
+    document.getElementById('solid-options').style.display = 'none';
+    document.getElementById('image-options').style.display = 'none';
+}
+
+function getColorBrightness(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return (r * 299 + g * 587 + b * 114) / 1000;
+}
+
+// ============================================
+// Canvas Drag & Drop System
+// ============================================
+
+const canvasInteraction = {
+    isDragging: false,
+    dragTarget: null, // 'screenshot', 'text', 'element', 'widget'
+    dragData: null,
+    startPos: { x: 0, y: 0 },
+    startValue: null,
+    selectedElement: null
+};
+
+// Get click position relative to canvas
+function getCanvasCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY,
+        percentX: ((e.clientX - rect.left) / rect.width) * 100,
+        percentY: ((e.clientY - rect.top) / rect.height) * 100
+    };
+}
+
+// Detect what was clicked on the canvas
+function detectClickTarget(coords) {
+    const dims = getCanvasDimensions();
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) return null;
+
+    // Check elements first (they're on top)
+    if (screenshot.elements?.length) {
+        for (let i = screenshot.elements.length - 1; i >= 0; i--) {
+            const el = screenshot.elements[i];
+            const elX = dims.width * (el.x / 100);
+            const elY = dims.height * (el.y / 100);
+            const size = Math.max(50, el.scale * 2); // Approximate hit area
+
+            if (Math.abs(coords.x - elX) < size && Math.abs(coords.y - elY) < size) {
+                return { type: 'element', data: el, index: i };
+            }
+        }
+    }
+
+    // Check widgets
+    if (screenshot.widgets?.length) {
+        for (let i = screenshot.widgets.length - 1; i >= 0; i--) {
+            const widget = screenshot.widgets[i];
+            const wX = dims.width * (widget.position.x / 100);
+            const wY = dims.height * (widget.position.y / 100);
+
+            if (coords.x >= wX && coords.x <= wX + 150 && coords.y >= wY && coords.y <= wY + 40) {
+                return { type: 'widget', data: widget, index: i };
+            }
+        }
+    }
+
+    // Check text area
+    const textSettings = getTextSettings();
+    const textAreaHeight = dims.height * 0.25;
+    if (textSettings.position === 'top' && coords.y < textAreaHeight) {
+        return { type: 'text', data: textSettings };
+    } else if (textSettings.position === 'bottom' && coords.y > dims.height - textAreaHeight) {
+        return { type: 'text', data: textSettings };
+    }
+
+    // Check screenshot/device area
+    const ss = getScreenshotSettings();
+    const ssX = dims.width * (ss.x / 100);
+    const ssY = dims.height * (ss.y / 100);
+    const ssWidth = dims.width * (ss.scale / 100) * 0.45;
+    const ssHeight = dims.height * (ss.scale / 100) * 0.8;
+
+    if (coords.x >= ssX - ssWidth && coords.x <= ssX + ssWidth &&
+        coords.y >= ssY - ssHeight && coords.y <= ssY + ssHeight) {
+        return { type: 'screenshot', data: ss };
+    }
+
+    return null;
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    const coords = getCanvasCoords(e);
+    const target = detectClickTarget(coords);
+
+    if (target) {
+        canvasInteraction.isDragging = true;
+        canvasInteraction.dragTarget = target.type;
+        canvasInteraction.dragData = target;
+        canvasInteraction.startPos = { x: e.clientX, y: e.clientY };
+
+        // Store starting values
+        switch (target.type) {
+            case 'screenshot':
+                canvasInteraction.startValue = { x: target.data.x, y: target.data.y };
+                break;
+            case 'text':
+                canvasInteraction.startValue = { offsetY: target.data.offsetY || 12 };
+                break;
+            case 'element':
+                canvasInteraction.startValue = { x: target.data.x, y: target.data.y };
+                canvasInteraction.selectedElement = target.index;
+                break;
+            case 'widget':
+                canvasInteraction.startValue = { ...target.data.position };
+                break;
+        }
+
+        canvas.style.cursor = 'grabbing';
+        e.preventDefault();
+    }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!canvasInteraction.isDragging) {
+        // Update cursor based on hover
+        const coords = getCanvasCoords(e);
+        const target = detectClickTarget(coords);
+        canvas.style.cursor = target ? 'grab' : 'default';
+        return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const deltaX = (e.clientX - canvasInteraction.startPos.x) / rect.width * 100;
+    const deltaY = (e.clientY - canvasInteraction.startPos.y) / rect.height * 100;
+    const screenshot = state.screenshots[state.selectedIndex];
+
+    switch (canvasInteraction.dragTarget) {
+        case 'screenshot':
+            const ss = getScreenshotSettings();
+            ss.x = Math.max(10, Math.min(90, canvasInteraction.startValue.x + deltaX));
+            ss.y = Math.max(10, Math.min(90, canvasInteraction.startValue.y + deltaY));
+            break;
+
+        case 'text':
+            const textSettings = getTextSettings();
+            let newOffsetY = canvasInteraction.startValue.offsetY +
+                (textSettings.position === 'top' ? deltaY : -deltaY);
+            textSettings.offsetY = Math.max(2, Math.min(40, newOffsetY));
+            break;
+
+        case 'element':
+            if (screenshot?.elements && canvasInteraction.selectedElement !== null) {
+                const el = screenshot.elements[canvasInteraction.selectedElement];
+                el.x = Math.max(5, Math.min(95, canvasInteraction.startValue.x + deltaX));
+                el.y = Math.max(5, Math.min(95, canvasInteraction.startValue.y + deltaY));
+            }
+            break;
+
+        case 'widget':
+            if (screenshot?.widgets && canvasInteraction.dragData?.index !== undefined) {
+                const widget = screenshot.widgets[canvasInteraction.dragData.index];
+                widget.position.x = Math.max(2, Math.min(85, canvasInteraction.startValue.x + deltaX));
+                widget.position.y = Math.max(2, Math.min(90, canvasInteraction.startValue.y + deltaY));
+            }
+            break;
+    }
+
+    updateCanvas();
+});
+
+canvas.addEventListener('mouseup', () => {
+    if (canvasInteraction.isDragging) {
+        canvasInteraction.isDragging = false;
+        canvasInteraction.dragTarget = null;
+        canvas.style.cursor = 'default';
+        syncUIWithState();
+    }
+});
+
+canvas.addEventListener('mouseleave', () => {
+    if (canvasInteraction.isDragging) {
+        canvasInteraction.isDragging = false;
+        canvasInteraction.dragTarget = null;
+        canvas.style.cursor = 'default';
+    }
+});
+
+// ============================================
+// Scroll to Resize
+// ============================================
+
+canvas.addEventListener('wheel', (e) => {
+    const coords = getCanvasCoords(e);
+    const target = detectClickTarget(coords);
+
+    if (!target) return;
+
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -2 : 2; // Scroll down = smaller, up = larger
+    const screenshot = state.screenshots[state.selectedIndex];
+
+    switch (target.type) {
+        case 'screenshot':
+            const ss = getScreenshotSettings();
+            ss.scale = Math.max(20, Math.min(150, ss.scale + delta));
+            break;
+
+        case 'text':
+            const textSettings = getTextSettings();
+            textSettings.headlineSize = Math.max(30, Math.min(150, (textSettings.headlineSize || 80) + delta));
+            break;
+
+        case 'element':
+            if (screenshot?.elements && target.index !== undefined) {
+                const el = screenshot.elements[target.index];
+                el.scale = Math.max(5, Math.min(100, el.scale + delta));
+            }
+            break;
+
+        case 'widget':
+            if (screenshot?.widgets && target.index !== undefined) {
+                const widget = screenshot.widgets[target.index];
+                widget.style = widget.style || {};
+                widget.style.fontSize = Math.max(10, Math.min(30, (widget.style.fontSize || 14) + delta / 2));
+            }
+            break;
+    }
+
+    updateCanvas();
+    syncUIWithState();
+}, { passive: false });
+
+// ============================================
+// Apply Background to All Screenshots
+// ============================================
+
+document.getElementById('apply-bg-to-all')?.addEventListener('click', () => {
+    const currentScreenshot = state.screenshots[state.selectedIndex];
+    if (!currentScreenshot) return;
+
+    const currentBg = currentScreenshot.background || getBackground();
+
+    if (confirm('Apply this background to all screenshots?')) {
+        state.screenshots.forEach((screenshot, index) => {
+            if (index !== state.selectedIndex) {
+                screenshot.background = JSON.parse(JSON.stringify(currentBg));
+            }
+        });
+
+        updateCanvas();
+        updateSidePreviews();
+    }
+});
+
+// ============================================
+// Elements / Logo Upload
+// ============================================
+
+document.getElementById('element-upload')?.addEventListener('click', () => {
+    document.getElementById('element-input')?.click();
+});
+
+document.getElementById('element-input')?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        addElementToScreenshot({
+            name: file.name,
+            src: event.target.result,
+            x: 50,
+            y: 50,
+            scale: 20,
+            rotation: 0
+        });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+});
+
+function addElementToScreenshot(element) {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) return;
+
+    if (!screenshot.elements) {
+        screenshot.elements = [];
+    }
+
+    element.id = Date.now().toString();
+    screenshot.elements.push(element);
+
+    updateElementsList();
+    updateCanvas();
+}
+
+function updateElementsList() {
+    const list = document.getElementById('element-list');
+    if (!list) return;
+
+    const screenshot = state.screenshots[state.selectedIndex];
+    const elements = screenshot?.elements || [];
+
+    list.innerHTML = elements.map(el => `
+        <div class="element-item" data-id="${el.id}">
+            <img src="${el.src}" alt="${el.name}">
+            <div class="element-item-info">
+                <div class="element-item-name">${el.name}</div>
+            </div>
+            <div class="element-item-controls">
+                <button onclick="moveElementToCanvas('${el.id}')">Place</button>
+                <button class="delete" onclick="removeElement('${el.id}')">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.removeElement = function(elementId) {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot?.elements) return;
+
+    screenshot.elements = screenshot.elements.filter(el => el.id !== elementId);
+    updateElementsList();
+    updateCanvas();
+};
+
+window.moveElementToCanvas = function(elementId) {
+    // Element is already on canvas, this just confirms placement
+    alert('Drag the element on the canvas to position it. Use scroll to resize.');
+};
+
+// Draw elements on canvas (add to updateCanvas flow)
+function drawElements() {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot?.elements?.length) return;
+
+    const dims = getCanvasDimensions();
+
+    screenshot.elements.forEach(element => {
+        const img = new Image();
+        img.src = element.src;
+
+        if (img.complete) {
+            drawElementImage(img, element, dims);
+        } else {
+            img.onload = () => {
+                drawElementImage(img, element, dims);
+            };
+        }
+    });
+}
+
+function drawElementImage(img, element, dims) {
+    const x = dims.width * (element.x / 100);
+    const y = dims.height * (element.y / 100);
+    const scale = element.scale / 100;
+    const width = img.width * scale;
+    const height = img.height * scale;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate((element.rotation || 0) * Math.PI / 180);
+    ctx.drawImage(img, -width / 2, -height / 2, width, height);
+    ctx.restore();
+}
+
+// Elements toggle (collapsible section)
+document.querySelector('[data-target="elements-options"]')?.addEventListener('click', function() {
+    const options = document.getElementById('elements-options');
+    if (options) {
+        const isCollapsed = this.classList.contains('collapsed');
+        this.classList.toggle('collapsed');
+        options.style.display = isCollapsed ? 'block' : 'none';
+    }
+});
+
+// ============================================
+// Fresh Template Gallery
+// ============================================
+
+let selectedTemplate = null;
+
+function populateTemplateGrid(category = 'all') {
+    const grid = document.getElementById('template-grid');
+    if (!grid || !window.FreshTemplates) return;
+
+    const templates = window.FreshTemplates.getTemplatesByCategory(category);
+    grid.innerHTML = '';
+
+    templates.forEach(template => {
+        const item = document.createElement('div');
+        item.className = 'template-item';
+        item.dataset.id = template.id;
+        item.dataset.name = template.name;
+        item.dataset.category = template.category;
+        item.style.background = template.preview;
+
+        // Add mini phone preview and category badge
+        const categoryLabels = {
+            'minimal': 'MIN',
+            'gradient': 'GRAD',
+            'dynamic': 'DYN',
+            'neon': 'NEON',
+            'soft': 'SOFT',
+            'bold': 'BOLD',
+            'nature': 'NAT',
+            'glass': 'GLASS',
+            '3d': '3D'
+        };
+        const badge = categoryLabels[template.category] || template.category.toUpperCase();
+        item.innerHTML = `
+            <div class="template-preview-phone"></div>
+            <span class="category-badge">${badge}</span>
+        `;
+
+        item.addEventListener('click', () => {
+            selectAndApplyTemplate(template.id);
+        });
+
+        grid.appendChild(item);
+    });
+}
+
+function selectAndApplyTemplate(templateId) {
+    const template = window.FreshTemplates.getTemplateById(templateId);
+    if (!template) return;
+
+    selectedTemplate = template;
+
+    // Mark as selected
+    document.querySelectorAll('.template-item').forEach(el => el.classList.remove('selected'));
+    document.querySelector(`.template-item[data-id="${templateId}"]`)?.classList.add('selected');
+
+    // Apply to current screenshot
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (screenshot) {
+        window.FreshTemplates.applyTemplate(template, screenshot);
+        updateCanvas();
+        syncUIWithState();
+    }
+}
+
+// Template category filter
+document.getElementById('template-category-filter')?.addEventListener('change', (e) => {
+    populateTemplateGrid(e.target.value);
+});
+
+// Apply template to all
+document.getElementById('apply-template-all-btn')?.addEventListener('click', () => {
+    if (!selectedTemplate) {
+        alert('Please select a template first');
+        return;
+    }
+
+    if (confirm('Apply this template to all screenshots?')) {
+        window.FreshTemplates.applyTemplateToAll(selectedTemplate, state.screenshots);
+        updateCanvas();
+        updateSidePreviews();
+        syncUIWithState();
+    }
+});
+
+// Smart Match - extract colors from screenshots
+document.getElementById('smart-match-btn')?.addEventListener('click', async () => {
+    const screenshot = state.screenshots[state.selectedIndex];
+    if (!screenshot) {
+        alert('Please upload a screenshot first');
+        return;
+    }
+
+    const btn = document.getElementById('smart-match-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg> Analyzing...';
+
+    try {
+        // Get the screenshot image
+        const imgSrc = screenshot.image?.src || screenshot.localizedImages?.en?.src;
+        if (!imgSrc) {
+            throw new Error('No image found');
+        }
+
+        // Extract colors
+        const colors = await window.FreshTemplates.extractColorsFromImage(imgSrc);
+
+        // Determine if screenshot is dark or light
+        const isDark = isImageDark(imgSrc);
+
+        // Generate smart template
+        const smartTemplate = window.FreshTemplates.generateSmartTemplate(colors, isDark);
+
+        // Apply it
+        window.FreshTemplates.applyTemplate(smartTemplate, screenshot);
+        updateCanvas();
+        syncUIWithState();
+
+        // Show success feedback
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Applied!';
+        setTimeout(() => {
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M12 6v6l4 2"/></svg> Smart Match';
+            btn.disabled = false;
+        }, 1500);
+
+    } catch (error) {
+        console.error('Smart match failed:', error);
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M12 6v6l4 2"/></svg> Smart Match';
+        btn.disabled = false;
+    }
+});
+
+function isImageDark(imgSrc) {
+    // Simple brightness check - assume dark if we can't determine
+    return true;
+}
+
+// Story Flow Button Handler
+document.getElementById('story-flow-btn')?.addEventListener('click', async () => {
+    if (state.screenshots.length === 0) {
+        showAppAlert('Please upload at least one screenshot first.', 'info');
+        return;
+    }
+
+    const flowType = document.getElementById('story-flow-select')?.value || 'journey';
+
+    if (window.AIEngine && window.AIEngine.generateStoryFlow) {
+        await window.AIEngine.generateStoryFlow(flowType);
+    } else {
+        showAppAlert('AI Engine not loaded. Please refresh the page.', 'error');
+    }
+});
+
+// Initialize template grid on load
+setTimeout(() => {
+    populateTemplateGrid('all');
+}, 500);
 
 // Initialize the app
 initSync();

@@ -77,6 +77,14 @@
                                 <path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z"/>
                             </svg>
                         </button>
+                        <button class="settings-btn" id="widgets-btn" title="Add Widgets & Badges">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                                <rect x="14" y="14" width="7" height="7" rx="1"/>
+                            </svg>
+                        </button>
                         <button class="settings-btn" id="about-btn" title="About">
                             <img src="img/info.svg" width="18" height="18" alt="About">
                         </button>
@@ -121,6 +129,90 @@
                             </svg>
                         </button>
                     </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Magic Design Section -->
+                <div class="magic-design-section">
+                    <button class="magic-design-btn" id="magic-design-btn" title="AI-powered design generation">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z"/>
+                        </svg>
+                        Magic Design
+                    </button>
+                    <div class="undo-redo-buttons">
+                        <button class="undo-btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 7v6h6M21 17a9 9 0 00-9-9 9 9 0 00-6.364 2.636L3 13"/>
+                            </svg>
+                        </button>
+                        <button class="redo-btn" id="redo-btn" title="Redo (Ctrl+Shift+Z)" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 7v6h-6M3 17a9 9 0 019-9 9 9 0 016.364 2.636L21 13"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Story Flow Section -->
+                <div class="story-flow-section">
+                    <div class="story-flow-header">
+                        <h4>Story Flow</h4>
+                        <span class="ai-badge">AI</span>
+                    </div>
+                    <p class="story-flow-desc">Create a cohesive narrative across your screenshots</p>
+                    <select id="story-flow-select">
+                        <option value="journey">User Journey</option>
+                        <option value="problem-solution">Problem → Solution</option>
+                        <option value="feature-showcase">Feature Showcase</option>
+                        <option value="transformation">Before/After</option>
+                        <option value="emotional">Emotional Appeal</option>
+                    </select>
+                    <button class="story-flow-btn" id="story-flow-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
+                        Generate Story
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Template Gallery -->
+                <div class="template-gallery-section">
+                    <div class="template-header">
+                        <h3>Templates</h3>
+                        <button class="smart-match-btn" id="smart-match-btn" title="Auto-match colors from your screenshots">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M12 2a10 10 0 0 1 0 20"/>
+                                <path d="M12 6v6l4 2"/>
+                            </svg>
+                            Smart Match
+                        </button>
+                    </div>
+                    <div class="template-filter">
+                        <select id="template-category-filter">
+                            <option value="all">All Templates</option>
+                            <option value="minimal">Minimal</option>
+                            <option value="gradient">Gradient</option>
+                            <option value="dynamic">Dynamic</option>
+                            <option value="neon">Neon & Cyber</option>
+                            <option value="soft">Soft & Elegant</option>
+                            <option value="bold">Bold</option>
+                            <option value="nature">Nature</option>
+                            <option value="glass">Glassmorphism</option>
+                            <option value="3d">3D Depth</option>
+                        </select>
+                    </div>
+                    <div class="template-grid" id="template-grid">
+                        <!-- Templates populated by JS -->
+                    </div>
+                    <button class="apply-template-all-btn" id="apply-template-all-btn">
+                        Apply to All Screenshots
+                    </button>
                 </div>
 
                 <div class="divider"></div>
@@ -247,12 +339,13 @@
                     <canvas id="preview-canvas"></canvas>
                     <div id="threejs-container" style="display: none;"></div>
                     <div class="no-screenshot" id="no-screenshot">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <circle cx="8.5" cy="8.5" r="1.5"/>
-                            <path d="M21 15l-5-5L5 21"/>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
-                        <p>Upload screenshots to get started</p>
+                        <p>Drop screenshots here or</p>
+                        <button class="upload-btn" id="main-upload-btn">Choose Files</button>
                     </div>
                 </div>
                 <div class="side-preview side-preview-right" id="side-preview-right">
@@ -297,6 +390,54 @@
             <div class="sidebar-content">
             <!-- Background Tab -->
             <div class="tab-content active" id="tab-background">
+                <!-- Theme Selector -->
+                <div class="control-group">
+                    <label class="control-label">Design Theme</label>
+                    <select id="theme-selector" class="full-width-select">
+                        <option value="">Select a theme...</option>
+                        <option value="MODERN_MINIMAL">Modern Minimal</option>
+                        <option value="NEON_CYBER">Neon Cyber</option>
+                        <option value="SOFT_LUXURY">Soft Luxury</option>
+                        <option value="BOLD_STARTUP">Bold Startup</option>
+                        <option value="NATURE_ORGANIC">Nature Organic</option>
+                        <option value="DARK_PREMIUM">Dark Premium</option>
+                    </select>
+                </div>
+
+                <!-- Background Preset Gallery -->
+                <div class="control-group">
+                    <div class="preset-dropdown" id="bg-preset-dropdown">
+                        <button class="preset-dropdown-trigger" id="bg-preset-trigger">
+                            <span>Background Presets</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </button>
+                        <div class="preset-dropdown-content" id="bg-preset-content">
+                            <div class="bg-preset-filter">
+                                <select id="bg-preset-category">
+                                    <option value="all">All Categories</option>
+                                    <option value="fitness">Fitness & Health</option>
+                                    <option value="finance">Finance & Banking</option>
+                                    <option value="food">Food & Restaurant</option>
+                                    <option value="social">Social & Dating</option>
+                                    <option value="productivity">Productivity</option>
+                                    <option value="entertainment">Entertainment</option>
+                                    <option value="education">Education</option>
+                                    <option value="travel">Travel</option>
+                                    <option value="shopping">Shopping</option>
+                                    <option value="gaming">Gaming</option>
+                                </select>
+                            </div>
+                            <div class="bg-preset-grid" id="bg-preset-grid">
+                                <!-- Background presets populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
                 <div class="control-group">
                     <label class="control-label">Background Type</label>
                     <div class="btn-group" id="bg-type-selector">
@@ -305,6 +446,14 @@
                         <button data-type="image">Image</button>
                     </div>
                 </div>
+
+                <button class="apply-all-btn" id="apply-bg-to-all" title="Apply this background to all screenshots">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Apply to All Screenshots
+                </button>
 
                 <!-- Gradient Options -->
                 <div id="gradient-options">
@@ -387,8 +536,34 @@
 
                 <!-- Image Options -->
                 <div id="image-options" style="display: none;">
+                    <!-- AI Background Generator -->
                     <div class="control-group">
-                        <label class="control-label">Background Image</label>
+                        <label class="control-label">AI Background Generator</label>
+                        <div class="ai-bg-generator">
+                            <textarea id="ai-bg-prompt" rows="2" placeholder="Describe your background (e.g., 'abstract purple waves', 'minimalist gradient with soft bokeh')"></textarea>
+                            <div class="ai-bg-options">
+                                <select id="ai-bg-style">
+                                    <option value="abstract">Abstract</option>
+                                    <option value="gradient">Gradient</option>
+                                    <option value="geometric">Geometric</option>
+                                    <option value="nature">Nature</option>
+                                    <option value="minimal">Minimal</option>
+                                    <option value="tech">Tech/Cyber</option>
+                                </select>
+                                <button class="ai-bg-generate-btn" id="ai-bg-generate">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z"/>
+                                    </svg>
+                                    Generate
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="control-group">
+                        <label class="control-label">Or Upload Image</label>
                         <div class="bg-image-upload" id="bg-image-upload">
                             <p>Click to upload image</p>
                         </div>
@@ -446,6 +621,39 @@
                             <input type="range" id="noise-intensity" min="0" max="100" value="10">
                             <span class="range-value" id="noise-intensity-value">10%</span>
                         </div>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Elements / Logo Upload -->
+                <div class="control-group">
+                    <div class="toggle-row collapsible collapsed" data-target="elements-options">
+                        <span class="toggle-label">
+                            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                            Elements & Logos
+                        </span>
+                    </div>
+                </div>
+
+                <div id="elements-options" style="display: none;">
+                    <div class="control-group">
+                        <label class="control-label">Upload Element</label>
+                        <div class="element-upload" id="element-upload">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <p>Upload logo or graphic element</p>
+                            <span>PNG, SVG recommended (transparent)</span>
+                        </div>
+                        <input type="file" id="element-input" accept="image/*" hidden>
+                    </div>
+                    <div class="element-list" id="element-list">
+                        <!-- Uploaded elements will appear here -->
                     </div>
                 </div>
             </div>
@@ -555,6 +763,30 @@
                     </div>
                 </div>
                 </div><!-- end position-presets-section -->
+
+                <!-- Layout Picker -->
+                <div class="control-group">
+                    <div class="preset-dropdown" id="layout-preset-dropdown">
+                        <button class="preset-dropdown-trigger" id="layout-preset-trigger">
+                            <span>Layout Templates</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </button>
+                        <div class="preset-dropdown-content" id="layout-preset-content">
+                            <div class="layout-category-tabs">
+                                <button class="layout-cat-tab active" data-category="hero">Hero</button>
+                                <button class="layout-cat-tab" data-category="panoramic">Panoramic</button>
+                                <button class="layout-cat-tab" data-category="dual">Dual</button>
+                                <button class="layout-cat-tab" data-category="zoom">Zoom</button>
+                                <button class="layout-cat-tab" data-category="minimal">Minimal</button>
+                            </div>
+                            <div class="layout-grid" id="layout-grid">
+                                <!-- Layout thumbnails populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="divider"></div>
 
@@ -811,6 +1043,57 @@
                     <div class="control-row">
                         <input type="range" id="line-height" min="80" max="250" value="110">
                         <span class="range-value" id="line-height-value">110%</span>
+                    </div>
+                </div>
+
+                <!-- Text Shadow -->
+                <div class="control-group">
+                    <div class="toggle-row collapsible collapsed" data-target="text-shadow-options">
+                        <span class="toggle-label">
+                            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                            Text Shadow
+                        </span>
+                        <div class="toggle" id="text-shadow-toggle"></div>
+                    </div>
+                </div>
+
+                <div id="text-shadow-options" style="display: none;">
+                    <div class="control-group">
+                        <label class="control-label">Shadow Color</label>
+                        <div class="color-input-wrapper">
+                            <input type="color" id="text-shadow-color" value="#000000">
+                            <input type="text" id="text-shadow-color-hex" value="#000000">
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Blur</label>
+                        <div class="control-row">
+                            <input type="range" id="text-shadow-blur" min="0" max="50" value="10">
+                            <span class="range-value" id="text-shadow-blur-value">10px</span>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Opacity</label>
+                        <div class="control-row">
+                            <input type="range" id="text-shadow-opacity" min="0" max="100" value="50">
+                            <span class="range-value" id="text-shadow-opacity-value">50%</span>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Offset X</label>
+                        <div class="control-row">
+                            <input type="range" id="text-shadow-x" min="-30" max="30" value="2">
+                            <span class="range-value" id="text-shadow-x-value">2px</span>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Offset Y</label>
+                        <div class="control-row">
+                            <input type="range" id="text-shadow-y" min="-30" max="30" value="2">
+                            <span class="range-value" id="text-shadow-y-value">2px</span>
+                        </div>
                     </div>
                 </div>
                 </div><!-- end headline-options -->
@@ -1374,10 +1657,292 @@
         </div>
     </div>
 
-    <script src="llm.js"></script>
-    <script src="language-utils.js"></script>
-    <script src="magical-titles.js"></script>
-    <script src="three-renderer.js"></script>
-    <script src="app.js"></script>
+    <!-- Magic Design Input Modal -->
+    <div class="modal-overlay" id="magic-design-input-modal">
+        <div class="modal magic-design-input-modal">
+            <div class="modal-icon magic-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z"/>
+                </svg>
+            </div>
+            <h2>Magic Design</h2>
+            <p class="modal-subtitle">AI will analyze your screenshots and create a complete design</p>
+
+            <div class="magic-input-form">
+                <!-- App Info Section -->
+                <div class="magic-section">
+                    <div class="magic-section-header">
+                        <span class="magic-section-icon">📱</span>
+                        <span class="magic-section-title">App Info (Optional)</span>
+                    </div>
+                    <div class="input-group">
+                        <label for="magic-app-name">App Name</label>
+                        <input type="text" id="magic-app-name" placeholder="Leave blank for AI to detect">
+                    </div>
+                    <div class="input-group">
+                        <label for="magic-app-description">App Description</label>
+                        <textarea id="magic-app-description" rows="2" placeholder="Brief description helps AI understand your app better"></textarea>
+                    </div>
+                </div>
+
+                <!-- AI Options Section -->
+                <div class="magic-section">
+                    <div class="magic-section-header">
+                        <span class="magic-section-icon">🎨</span>
+                        <span class="magic-section-title">Design Options</span>
+                    </div>
+
+                    <div class="magic-options-grid">
+                        <div class="input-group">
+                            <label for="magic-category">App Category</label>
+                            <select id="magic-category">
+                                <option value="auto">Auto-detect</option>
+                                <option value="fitness">Fitness & Health</option>
+                                <option value="finance">Finance & Banking</option>
+                                <option value="productivity">Productivity</option>
+                                <option value="social">Social & Dating</option>
+                                <option value="food">Food & Delivery</option>
+                                <option value="travel">Travel & Navigation</option>
+                                <option value="entertainment">Entertainment</option>
+                                <option value="education">Education</option>
+                                <option value="shopping">Shopping & E-commerce</option>
+                                <option value="developer">Developer Tools</option>
+                                <option value="gaming">Gaming</option>
+                                <option value="lifestyle">Lifestyle</option>
+                                <option value="health">Wellness & Meditation</option>
+                                <option value="business">Business</option>
+                                <option value="music">Music & Audio</option>
+                                <option value="photo">Photo & Video</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="magic-theme">Design Theme</label>
+                            <select id="magic-theme">
+                                <option value="auto">AI Recommended</option>
+                                <option value="MODERN_MINIMAL">Modern Minimal</option>
+                                <option value="SWISS_BRUTALISM">Swiss Brutalism</option>
+                                <option value="NEON_CYBER">Neon Cyber</option>
+                                <option value="SOFT_LUXURY">Soft Luxury</option>
+                                <option value="GLASS_MORPHISM">Glass Morphism</option>
+                                <option value="CLEAN_PRO">Clean Pro</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="magic-headline-style">Headline Style</label>
+                            <select id="magic-headline-style">
+                                <option value="short_punchy">Short & Punchy</option>
+                                <option value="benefit_focused">Benefit Focused</option>
+                                <option value="question">Questions</option>
+                                <option value="command">Commands</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="magic-language">Generate Headlines In</label>
+                            <select id="magic-language">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Background Options -->
+                <div class="magic-section">
+                    <div class="magic-section-header">
+                        <span class="magic-section-icon">🌈</span>
+                        <span class="magic-section-title">Background Options</span>
+                    </div>
+                    <div class="magic-bg-options">
+                        <label class="magic-bg-option">
+                            <input type="radio" name="magic-bg-type" value="gradient" checked>
+                            <span class="magic-bg-label">
+                                <span class="magic-bg-icon">🎨</span>
+                                <span class="magic-bg-text">Smart Gradients</span>
+                                <span class="magic-bg-desc">AI-generated color schemes</span>
+                            </span>
+                        </label>
+                        <label class="magic-bg-option">
+                            <input type="radio" name="magic-bg-type" value="preset">
+                            <span class="magic-bg-label">
+                                <span class="magic-bg-icon">📦</span>
+                                <span class="magic-bg-text">Category Presets</span>
+                                <span class="magic-bg-desc">Professional preset backgrounds</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-cancel-btn" id="magic-input-cancel">Cancel</button>
+                <button class="modal-confirm-btn magic-start-btn" id="magic-input-start">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z"/>
+                    </svg>
+                    Generate Design
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Magic Design Progress Modal -->
+    <div class="modal-overlay" id="magic-design-modal">
+        <div class="modal magic-design-modal">
+            <div class="modal-icon magic-icon spinning">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z"/>
+                </svg>
+            </div>
+            <h2>Creating Magic</h2>
+            <p id="magic-design-status">Analyzing your screenshots...</p>
+            <div class="magic-design-stages" id="magic-design-stages">
+                <div class="magic-stage" data-stage="analyzing">
+                    <span class="stage-icon">1</span>
+                    <span class="stage-name">Analyzing</span>
+                </div>
+                <div class="magic-stage" data-stage="planning">
+                    <span class="stage-icon">2</span>
+                    <span class="stage-name">Planning</span>
+                </div>
+                <div class="magic-stage" data-stage="backgrounds">
+                    <span class="stage-icon">3</span>
+                    <span class="stage-name">Backgrounds</span>
+                </div>
+                <div class="magic-stage" data-stage="layouts">
+                    <span class="stage-icon">4</span>
+                    <span class="stage-name">Layouts</span>
+                </div>
+                <div class="magic-stage" data-stage="copy">
+                    <span class="stage-icon">5</span>
+                    <span class="stage-name">Headlines</span>
+                </div>
+                <div class="magic-stage" data-stage="finalizing">
+                    <span class="stage-icon">6</span>
+                    <span class="stage-name">Finalizing</span>
+                </div>
+            </div>
+            <div class="magic-design-progress">
+                <div class="magic-progress-bar" id="magic-progress-bar"></div>
+            </div>
+            <button class="modal-cancel-btn" id="magic-design-cancel">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Widget Palette Panel -->
+    <div class="widget-palette" id="widget-palette">
+        <div class="widget-palette-header">
+            <h3>Widgets & Badges</h3>
+            <button class="widget-palette-close" id="widget-palette-close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="widget-palette-content">
+            <div class="widget-category">
+                <h4>Social Proof</h4>
+                <div class="widget-grid">
+                    <button class="widget-item" data-widget="rating" title="Star Rating">
+                        <span class="widget-icon">⭐</span>
+                        <span class="widget-label">Rating</span>
+                    </button>
+                    <button class="widget-item" data-widget="award" title="Award Badge">
+                        <span class="widget-icon">🏆</span>
+                        <span class="widget-label">Award</span>
+                    </button>
+                    <button class="widget-item" data-widget="download" title="Download Count">
+                        <span class="widget-icon">📥</span>
+                        <span class="widget-label">Downloads</span>
+                    </button>
+                    <button class="widget-item" data-widget="featured" title="Featured Badge">
+                        <span class="widget-icon">✨</span>
+                        <span class="widget-label">Featured</span>
+                    </button>
+                </div>
+            </div>
+            <div class="widget-category">
+                <h4>Trust Badges</h4>
+                <div class="widget-grid">
+                    <button class="widget-item" data-widget="secure" title="Secure Badge">
+                        <span class="widget-icon">🔒</span>
+                        <span class="widget-label">Secure</span>
+                    </button>
+                    <button class="widget-item" data-widget="verified" title="Verified Badge">
+                        <span class="widget-icon">✓</span>
+                        <span class="widget-label">Verified</span>
+                    </button>
+                    <button class="widget-item" data-widget="privacy" title="Privacy Badge">
+                        <span class="widget-icon">🛡️</span>
+                        <span class="widget-label">Privacy</span>
+                    </button>
+                    <button class="widget-item" data-widget="new" title="New Badge">
+                        <span class="widget-icon">🆕</span>
+                        <span class="widget-label">New</span>
+                    </button>
+                </div>
+            </div>
+            <div class="widget-category">
+                <h4>Feature Highlights</h4>
+                <div class="widget-grid">
+                    <button class="widget-item" data-widget="free" title="Free Badge">
+                        <span class="widget-icon">🎁</span>
+                        <span class="widget-label">Free</span>
+                    </button>
+                    <button class="widget-item" data-widget="pro" title="Pro Badge">
+                        <span class="widget-icon">💎</span>
+                        <span class="widget-label">Pro</span>
+                    </button>
+                    <button class="widget-item" data-widget="offline" title="Offline Badge">
+                        <span class="widget-icon">📴</span>
+                        <span class="widget-label">Offline</span>
+                    </button>
+                    <button class="widget-item" data-widget="sync" title="Cloud Sync">
+                        <span class="widget-icon">☁️</span>
+                        <span class="widget-label">Sync</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="widget-palette-footer">
+            <button class="widget-clear-btn" id="widget-clear-btn">Clear All Widgets</button>
+        </div>
+    </div>
+
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Core modules (v2 cache bust) -->
+    <script src="llm.js?v=2"></script>
+    <script src="language-utils.js?v=2"></script>
+    <script src="magical-titles.js?v=2"></script>
+    <script src="three-renderer.js?v=2"></script>
+
+    <!-- New combined features (v2 cache bust) -->
+    <script src="layouts.js?v=3"></script>
+    <script src="themes.js?v=3"></script>
+    <script src="widgets.js?v=3"></script>
+    <script src="backgrounds.js?v=3"></script>
+    <script src="category-detection.js?v=3"></script>
+    <script src="smart-layout.js?v=3"></script>
+    <script src="agents.js?v=3"></script>
+    <script src="undo-redo.js?v=3"></script>
+    <script src="onboarding.js?v=3"></script>
+    <script src="ai-engine.js?v=3"></script>
+    <script src="fresh-templates.js?v=1"></script>
+
+    <!-- Auto-configure Google Gemini 3.0 API -->
+    <script>
+        // Always use Gemini 3.0 Pro
+        localStorage.setItem('googleApiKey', 'AIzaSyCA8xsXUhakUywN3ghzy7qR6jBQuyrs7Ng');
+        localStorage.setItem('aiProvider', 'google');
+        localStorage.setItem('googleModel', 'gemini-3-pro-preview');
+        console.log('[Config] Gemini 3.0 Pro configured');
+    </script>
+
+    <!-- Main application (v2 cache bust) -->
+    <script src="app.js?v=2"></script>
 </body>
 </html>
