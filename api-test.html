@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gemini API Model Test</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #fff; padding: 40px; }
+        h1 { color: #667eea; }
+        .model { padding: 12px; margin: 8px 0; border-radius: 8px; background: #222; }
+        .model.testing { border-left: 4px solid #f1c40f; }
+        .model.success { border-left: 4px solid #2ecc71; background: rgba(46,204,113,0.1); }
+        .model.failed { border-left: 4px solid #e74c3c; background: rgba(231,76,60,0.1); }
+        .error { font-size: 12px; color: #e74c3c; margin-top: 4px; }
+        button { background: linear-gradient(135deg, #667eea, #764ba2); border: none; color: white;
+                 padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 10px 0; }
+        button:hover { opacity: 0.9; }
+        input { padding: 12px; width: 400px; border-radius: 6px; border: 1px solid #444; background: #333; color: #fff; }
+        .status { font-weight: bold; }
+        pre { background: #111; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <h1>Gemini API Model Tester</h1>
+    <p>Test which Gemini models your API key has access to:</p>
+
+    <div style="margin: 20px 0;">
+        <input type="text" id="apiKey" placeholder="Enter your Google API Key (AIza...)" />
+        <button onclick="runTests()">Test All Models</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const MODELS_TO_TEST = [
+            'gemini-3-pro-preview',
+            'gemini-2.5-flash',
+            'gemini-2.5-pro',
+            'gemini-2.5-flash-preview-05-20',
+            'gemini-2.0-flash',
+            'gemini-2.0-flash-lite',
+            'gemini-1.5-pro',
+            'gemini-1.5-flash'
+        ];
+
+        // Load saved API key
+        const savedKey = localStorage.getItem('googleApiKey');
+        if (savedKey) {
+            document.getElementById('apiKey').value = savedKey;
+        }
+
+        async function testModel(apiKey, model) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: 'Say "OK" and nothing else.' }] }],
+                        generationConfig: { maxOutputTokens: 10 }
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'OK';
+                    return { success: true, message: `Working! Response: "${text.trim()}"` };
+                } else {
+                    return {
+                        success: false,
+                        message: data.error?.message || `HTTP ${response.status}`,
+                        code: data.error?.code || response.status,
+                        details: data.error
+                    };
+                }
+            } catch (error) {
+                return { success: false, message: error.message };
+            }
+        }
+
+        async function runTests() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if (!apiKey) {
+                alert('Please enter your API key');
+                return;
+            }
+
+            // Save for convenience
+            localStorage.setItem('googleApiKey', apiKey);
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>Testing models...</h2>';
+
+            let workingModels = [];
+
+            for (const model of MODELS_TO_TEST) {
+                const modelDiv = document.createElement('div');
+                modelDiv.className = 'model testing';
+                modelDiv.innerHTML = `<span class="status">Testing:</span> ${model}...`;
+                resultsDiv.appendChild(modelDiv);
+
+                const result = await testModel(apiKey, model);
+
+                if (result.success) {
+                    modelDiv.className = 'model success';
+                    modelDiv.innerHTML = `<span class="status">✓ ${model}</span><br><small>${result.message}</small>`;
+                    workingModels.push(model);
+                } else {
+                    modelDiv.className = 'model failed';
+                    modelDiv.innerHTML = `<span class="status">✗ ${model}</span><div class="error">${result.message}</div>`;
+                    if (result.details) {
+                        modelDiv.innerHTML += `<pre>${JSON.stringify(result.details, null, 2)}</pre>`;
+                    }
+                }
+            }
+
+            // Summary
+            const summaryDiv = document.createElement('div');
+            summaryDiv.style.cssText = 'margin-top: 30px; padding: 20px; background: #333; border-radius: 8px;';
+
+            if (workingModels.length > 0) {
+                summaryDiv.innerHTML = `
+                    <h2 style="color: #2ecc71;">✓ ${workingModels.length} Working Models Found!</h2>
+                    <p>Best model for your API key: <strong>${workingModels[0]}</strong></p>
+                    <p>Run this in the main app console to use it:</p>
+                    <pre>localStorage.setItem('googleModel', '${workingModels[0]}'); location.reload();</pre>
+                `;
+            } else {
+                summaryDiv.innerHTML = `
+                    <h2 style="color: #e74c3c;">✗ No Working Models Found</h2>
+                    <p>Your API key doesn't have access to any tested models. Please check:</p>
+                    <ul>
+                        <li>API key is correct and not expired</li>
+                        <li>Billing is enabled on your Google Cloud project</li>
+                        <li>Gemini API is enabled in Google Cloud Console</li>
+                    </ul>
+                `;
+            }
+            resultsDiv.appendChild(summaryDiv);
+        }
+    </script>
+</body>
+</html>

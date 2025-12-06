@@ -316,12 +316,6 @@
                             </svg>
                         </button>
                     </div>
-                    <button class="magic-design-btn" id="magic-design-btn" title="Apply professional design rules automatically">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/>
-                        </svg>
-                        Magic Design
-                    </button>
                     <button class="export-btn export-all-btn" id="export-all" title="Export all screenshots as ZIP">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
@@ -1920,36 +1914,37 @@
     <!-- jsPDF for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-    <!-- Core modules (v5 cache bust) -->
-    <script src="llm.js?v=5"></script>
-    <script src="language-utils.js?v=5"></script>
-    <script src="magical-titles.js?v=5"></script>
-    <script src="three-renderer.js?v=5"></script>
+    <!-- Core modules (v6 cache bust) -->
+    <script src="utils.js?v=6"></script>
+    <script src="llm.js?v=6"></script>
+    <script src="language-utils.js?v=6"></script>
+    <script src="magical-titles.js?v=6"></script>
+    <script src="three-renderer.js?v=6"></script>
 
-    <!-- New combined features (v5 cache bust) -->
-    <script src="layouts.js?v=5"></script>
-    <script src="themes.js?v=5"></script>
-    <script src="widgets.js?v=5"></script>
-    <script src="backgrounds.js?v=5"></script>
-    <script src="category-detection.js?v=5"></script>
-    <script src="smart-layout.js?v=5"></script>
-    <script src="agents.js?v=5"></script>
-    <script src="undo-redo.js?v=5"></script>
-    <script src="onboarding.js?v=5"></script>
-    <script src="ai-engine.js?v=5"></script>
-    <script src="fresh-templates.js?v=5"></script>
+    <!-- New combined features (v6 cache bust) -->
+    <script src="layouts.js?v=6"></script>
+    <script src="themes.js?v=6"></script>
+    <script src="widgets.js?v=6"></script>
+    <script src="backgrounds.js?v=6"></script>
+    <script src="category-detection.js?v=6"></script>
+    <script src="smart-layout.js?v=6"></script>
+    <script src="agents.js?v=6"></script>
+    <script src="undo-redo.js?v=6"></script>
+    <script src="onboarding.js?v=6"></script>
+    <script src="ai-engine.js?v=6"></script>
+    <script src="fresh-templates.js?v=6"></script>
 
     <!-- Configure default Gemini model (API key set via Settings) -->
     <script>
         // Set default model (user must add API key via Settings)
         localStorage.setItem('aiProvider', 'google');
         if (!localStorage.getItem('googleModel')) {
-            localStorage.setItem('googleModel', 'gemini-2.0-flash');
+            localStorage.setItem('googleModel', 'gemini-3-pro-preview');
         }
         console.log('[Config] Gemini model:', localStorage.getItem('googleModel'));
     </script>
 
-    <!-- Main application (v5 cache bust) -->
-    <script src="app.js?v=5"></script>
+    <!-- Main application (v6 cache bust) -->
+    <script src="app.js?v=6"></script>
 </body>
 </html>

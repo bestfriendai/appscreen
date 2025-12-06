@@ -369,25 +369,27 @@ function determineHeadlineStyle(analysis) {
  */
 async function applySmartBackgrounds(analysis, strategy, generateImages = false) {
     const screenshots = state.screenshots;
+    const adjustColor = window.Utils?.adjustColorBrightness || adjustColorBrightness;
 
     for (let i = 0; i < screenshots.length; i++) {
         updateAIProgress(`Applying background ${i + 1}/${screenshots.length}...`);
 
         const screenshot = screenshots[i];
 
-        // Create gradient based on strategy
-        const gradientAngle = 135 + (i * 10); // Slight variation per slide
-        const colorVariation = i * 5; // Slight color shift
+        // Use consistent angle for professional look, vary colors subtly instead
+        const gradientAngle = 135; // Consistent across all slides
+        const colorVariation = i * 3; // Subtle color shift per slide
+        const positionShift = i * 2; // Subtle gradient position shift
 
         // Apply background settings
-        screenshot.background = screenshot.background || JSON.parse(JSON.stringify(state.defaults.background));
+        screenshot.background = screenshot.background || (window.Utils?.deepClone(state.defaults.background) || {});
         screenshot.background.type = 'gradient';
         screenshot.background.gradient = {
-            angle: gradientAngle % 360,
+            angle: gradientAngle,
             stops: [
-                { color: strategy.colorPalette.background, position: 0 },
-                { color: adjustColorBrightness(strategy.colorPalette.primary, colorVariation), position: 50 },
-                { color: adjustColorBrightness(strategy.colorPalette.secondary, -colorVariation), position: 100 }
+                { color: strategy.colorPalette.background, position: 0 + positionShift },
+                { color: adjustColor(strategy.colorPalette.primary, colorVariation), position: 45 + positionShift },
+                { color: adjustColor(strategy.colorPalette.secondary, -colorVariation), position: 100 }
             ]
         };
 
@@ -407,7 +409,7 @@ async function applySmartBackgrounds(analysis, strategy, generateImages = false)
                     screenshot.background.imageBlur = 0;
                 }
             } catch (e) {
-                console.warn('Background image generation failed, using gradient', e);
+                if (window.Utils?.DEBUG) console.warn('Background image generation failed, using gradient', e);
             }
         }
     }
@@ -461,14 +463,21 @@ async function applySmartLayouts(analysis, strategy) {
         // Get layout config
         const layoutConfig = window.LayoutEngine?.getLayoutConfig(layoutId) || getDefaultLayoutConfig(layoutId);
 
-        // Apply layout settings to screenshot
-        screenshot.screenshot = screenshot.screenshot || JSON.parse(JSON.stringify(state.defaults.screenshot));
+        // Apply layout settings to screenshot - initialize with defaults if needed
+        screenshot.screenshot = screenshot.screenshot || (window.Utils?.deepClone(state.defaults.screenshot) || {});
 
-        // Apply device positioning - push device down to avoid text overlap
-        screenshot.screenshot.scale = layoutConfig.device.scale * 100;
-        screenshot.screenshot.x = 50 + layoutConfig.device.x; // Convert from offset to absolute
-        screenshot.screenshot.y = 50 + (layoutConfig.device.y || 20); // Ensure device is lower
-        screenshot.screenshot.rotation = layoutConfig.device.rotation || 0;
+        // Convert layout coordinates (offset from center) to screenshot coordinates (0-100%)
+        const position = window.Utils?.convertLayoutToScreenshotPosition(layoutConfig) || {
+            scale: (layoutConfig.device.scale || 0.65) * 100,
+            x: 50 + (layoutConfig.device.x || 0),
+            y: 50 + (layoutConfig.device.y || 20),
+            rotation: layoutConfig.device.rotation || 0
+        };
+
+        screenshot.screenshot.scale = position.scale;
+        screenshot.screenshot.x = position.x;
+        screenshot.screenshot.y = position.y;
+        screenshot.screenshot.rotation = position.rotation;
 
         // Store layout info
         screenshot.layout = layoutId;
@@ -479,9 +488,24 @@ async function applySmartLayouts(analysis, strategy) {
             screenshot.text = screenshot.text || {};
             screenshot.text.offsetY = layoutConfig.text.offsetY || 6;
             screenshot.text.position = layoutConfig.text.position || 'top';
+
+            // Adjust text alignment based on layout
+            if (layoutConfig.text.align === 'left') {
+                screenshot.text.stackedText = true;
+            }
         }
 
-        // Apply shadow based on layout
+        // Initialize shadow if needed and apply settings
+        screenshot.screenshot.shadow = screenshot.screenshot.shadow || {
+            enabled: true,
+            blur: 50,
+            opacity: 30,
+            x: 0,
+            y: 20,
+            color: '#000000'
+        };
+
+        // Apply enhanced shadow for floating layouts
         if (layoutConfig.device.floatingShadow) {
             screenshot.screenshot.shadow.blur = 60;
             screenshot.screenshot.shadow.opacity = 40;
@@ -770,24 +794,31 @@ async function callVisionAPI(images, prompt) {
 
 /**
  * Parse JSON from AI response
+ * Uses Utils.parseJSONFromAIResponse if available
  */
 function parseJSONResponse(responseText) {
-    // Clean up response
+    if (window.Utils?.parseJSONFromAIResponse) {
+        return window.Utils.parseJSONFromAIResponse(responseText);
+    }
+    // Fallback implementation
     let cleaned = responseText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-
-    // Extract JSON object
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
         cleaned = jsonMatch[0];
     }
-
     return JSON.parse(cleaned);
 }
 
 /**
  * Adjust color brightness
+ * Uses Utils.adjustColorBrightness if available
  */
 function adjustColorBrightness(hex, percent) {
+    if (window.Utils?.adjustColorBrightness) {
+        return window.Utils.adjustColorBrightness(hex, percent);
+    }
+    // Fallback implementation
+    if (!hex) return '#000000';
     const num = parseInt(hex.replace('#', ''), 16);
     const amt = Math.round(2.55 * percent);
     const R = Math.min(255, Math.max(0, (num >> 16) + amt));
@@ -798,8 +829,13 @@ function adjustColorBrightness(hex, percent) {
 
 /**
  * Capitalize first letter
+ * Uses Utils.capitalizeFirst if available
  */
 function capitalizeFirst(str) {
+    if (window.Utils?.capitalizeFirst) {
+        return window.Utils.capitalizeFirst(str);
+    }
+    if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
@@ -1295,13 +1331,24 @@ async function generateStoryHeadlines(analysis, flow, options = {}) {
     const sequence = flow.sequence.slice(0, numScreenshots);
     const patterns = flow.headlinePatterns.slice(0, numScreenshots);
 
-    const prompt = `You are creating App Store screenshot headlines for a ${analysis.app.category} app called "${analysis.app.name || 'this app'}".
+    // Extract features from screenshot analysis (analysis.screenshots[].feature)
+    const features = analysis.screenshots
+        ? analysis.screenshots.map(s => s.feature).filter(Boolean)
+        : [];
+
+    // Get app name from primary function or use generic
+    const appName = analysis.app?.primaryFunction?.split(' ')[0] || 'App';
+    const category = analysis.app?.category || 'generic';
+    const vibe = analysis.app?.vibe || 'professional';
+
+    const prompt = `You are creating App Store screenshot headlines for a ${category} app.
 
 Story Flow: ${flow.name}
 Description: ${flow.description}
 
-App Features: ${analysis.features.join(', ')}
-App Vibe: ${analysis.app.vibe}
+App Function: ${analysis.app?.primaryFunction || 'mobile application'}
+App Features: ${features.length > 0 ? features.join(', ') : 'various features'}
+App Vibe: ${vibe}
 
 Generate ${numScreenshots} headlines that follow this story sequence:
 ${sequence.map((step, i) => `${i + 1}. ${step.toUpperCase()}: (example pattern: "${patterns[i]}")`).join('\n')}
@@ -1310,14 +1357,14 @@ Requirements:
 - Each headline should be 2-6 words
 - Headlines should flow naturally from one to the next
 - Tell a compelling story that makes users want to download
-- Match the ${analysis.app.vibe} tone
+- Match the ${vibe} tone
 - Be creative but clear
 
 Return ONLY a JSON array of strings, no markdown:
 ["headline1", "headline2", ...]`;
 
     try {
-        const response = await callAIWithPrompt(prompt);
+        const response = await window.AIAgents.callAI(prompt);
         const headlines = parseAIResponse(response);
 
         if (!Array.isArray(headlines)) {
@@ -1325,33 +1372,37 @@ Return ONLY a JSON array of strings, no markdown:
         }
 
         // Apply headlines to screenshots
+        const currentLang = state.currentLanguage || state.selectedLanguage || 'en';
         headlines.forEach((headline, index) => {
             if (screenshots[index]) {
                 screenshots[index].text = screenshots[index].text || {};
                 screenshots[index].text.headlines = screenshots[index].text.headlines || {};
-                screenshots[index].text.headlines[state.selectedLanguage] = headline;
+                screenshots[index].text.headlines[currentLang] = headline;
             }
         });
 
         return headlines;
 
     } catch (error) {
-        console.warn('Story headline generation failed, using fallback');
+        if (window.Utils?.DEBUG) console.warn('Story headline generation failed, using fallback', error);
+
         // Apply fallback headlines based on patterns
+        const currentLang = state.currentLanguage || state.selectedLanguage || 'en';
         patterns.forEach((pattern, index) => {
             if (screenshots[index]) {
+                const featureForIndex = features[Math.min(index, features.length - 1)] || 'feature';
                 const headline = pattern
-                    .replace('[benefit]', analysis.features[0] || 'solution')
-                    .replace('[feature]', analysis.features[Math.min(index, analysis.features.length - 1)] || 'feature')
+                    .replace('[benefit]', features[0] || 'solution')
+                    .replace('[feature]', featureForIndex)
                     .replace('[Action verb]', 'Get started')
                     .replace('[result]', 'results')
                     .replace('[problem]', 'the old way')
-                    .replace('[category]', analysis.app.category)
+                    .replace('[category]', category)
                     .replace(/\[.*?\]/g, 'more');
 
                 screenshots[index].text = screenshots[index].text || {};
                 screenshots[index].text.headlines = screenshots[index].text.headlines || {};
-                screenshots[index].text.headlines[state.selectedLanguage] = headline;
+                screenshots[index].text.headlines[currentLang] = headline;
             }
         });
     }

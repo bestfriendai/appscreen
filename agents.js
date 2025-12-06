@@ -63,15 +63,19 @@ const GENERATION_STAGES = [
  * Make API call to Gemini
  */
 async function callAI(prompt, options = {}) {
-    const apiKey = localStorage.getItem('googleApiKey');
-    const model = localStorage.getItem('googleModel') || 'gemini-2.0-flash';
+    // Use the configured Gemini 3 API key
+    const apiKey = localStorage.getItem('googleApiKey') || 'AIzaSyBFVCWZnc6wKlOeoCwBf_lbWiVKuyRurx0';
+    // Use getSelectedModel() for validated model selection - Gemini 3 only
+    const model = typeof getSelectedModel === 'function'
+        ? getSelectedModel()
+        : 'gemini-3-pro-preview';
 
-    console.log('[callAI] Using Gemini');
-    console.log('[callAI] Model:', model);
-    console.log('[callAI] API Key present:', !!apiKey);
-    console.log('[callAI] API Key prefix:', apiKey?.substring(0, 10) + '...');
-    console.log('[callAI] Options:', { json: options.json, images: options.images?.length || 0, temperature: options.temperature });
-    console.log('[callAI] Prompt length:', prompt?.length);
+    if (window.Utils?.DEBUG) {
+        console.log('[callAI] Using Gemini');
+        console.log('[callAI] Model:', model);
+        console.log('[callAI] API Key present:', !!apiKey);
+        console.log('[callAI] Options:', { json: options.json, images: options.images?.length || 0, temperature: options.temperature });
+    }
 
     if (!apiKey) {
         throw new Error('No Gemini API key configured. Please add your API key in Settings.');
@@ -84,11 +88,13 @@ async function callAI(prompt, options = {}) {
  * Call Google Gemini API
  */
 async function callGemini(apiKey, model, prompt, options = {}) {
-    const modelToUse = model || 'gemini-2.0-flash';
+    const modelToUse = model || 'gemini-3-pro-preview';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${apiKey}`;
 
-    console.log('[Gemini API] Model:', modelToUse);
-    console.log('[Gemini API] URL:', url.replace(apiKey, 'API_KEY_HIDDEN'));
+    if (window.Utils?.DEBUG) {
+        console.log('[Gemini API] Model:', modelToUse);
+        console.log('[Gemini API] URL:', url.replace(apiKey, 'API_KEY_HIDDEN'));
+    }
 
     const contents = [{
         parts: [{ text: prompt }]
@@ -112,11 +118,13 @@ async function callGemini(apiKey, model, prompt, options = {}) {
         contents,
         generationConfig: {
             temperature: options.temperature || 0.7,
-            maxOutputTokens: options.maxTokens || 8192  // Gemini 3 needs more tokens for thinking
+            maxOutputTokens: options.maxTokens || 8192
         }
     };
 
-    console.log('[Gemini API] Request config:', requestBody.generationConfig);
+    if (window.Utils?.DEBUG) {
+        console.log('[Gemini API] Request config:', requestBody.generationConfig);
+    }
 
     try {
         const response = await fetch(url, {
@@ -132,7 +140,9 @@ async function callGemini(apiKey, model, prompt, options = {}) {
         }
 
         const data = await response.json();
-        console.log('Gemini response:', data);
+        if (window.Utils?.DEBUG) {
+            console.log('Gemini response:', data);
+        }
 
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 

@@ -1435,13 +1435,15 @@ function syncUIWithState() {
     document.getElementById('image-options').style.display = bg.type === 'image' ? 'block' : 'none';
 
     // Gradient
-    document.getElementById('gradient-angle').value = bg.gradient.angle;
-    document.getElementById('gradient-angle-value').textContent = formatValue(bg.gradient.angle) + '°';
+    const gradientAngle = bg.gradient?.angle ?? 135;
+    document.getElementById('gradient-angle').value = gradientAngle;
+    document.getElementById('gradient-angle-value').textContent = formatValue(gradientAngle) + '°';
     updateGradientStopsUI();
 
     // Solid color
-    document.getElementById('solid-color').value = bg.solid;
-    document.getElementById('solid-color-hex').value = bg.solid;
+    const solidColor = bg.solid || '#1a1a2e';
+    document.getElementById('solid-color').value = solidColor;
+    document.getElementById('solid-color-hex').value = solidColor;
 
     // Image background
     document.getElementById('bg-image-fit').value = bg.imageFit;
@@ -2145,6 +2147,16 @@ function setupEventListeners() {
     // Add gradient stop
     document.getElementById('add-gradient-stop').addEventListener('click', () => {
         const bg = getBackground();
+        if (!bg.gradient || !bg.gradient.stops || bg.gradient.stops.length === 0) {
+            // Initialize gradient if not present
+            bg.gradient = {
+                angle: 135,
+                stops: [
+                    { color: '#667eea', position: 0 },
+                    { color: '#764ba2', position: 100 }
+                ]
+            };
+        }
         const lastStop = bg.gradient.stops[bg.gradient.stops.length - 1];
         bg.gradient.stops.push({
             color: lastStop.color,
@@ -4438,9 +4450,14 @@ function replaceScreenshot(index) {
 
 function updateGradientStopsUI() {
     const container = document.getElementById('gradient-stops');
+    if (!container) return;
     container.innerHTML = '';
 
     const bg = getBackground();
+    if (!bg.gradient || !bg.gradient.stops) {
+        // No gradient data - show empty state or create default
+        return;
+    }
     bg.gradient.stops.forEach((stop, index) => {
         const div = document.createElement('div');
         div.className = 'gradient-stop';
@@ -4748,30 +4765,64 @@ function applyCategoryProfile(category) {
 // One-click professional screenshot transformation
 // ============================================================================
 
+/**
+ * Magic Design - automatically applies professional design rules
+ * Delegates to AI Engine if available and API key is configured,
+ * otherwise uses local rule-based design.
+ */
 function magicDesign(appName = '', options = {}) {
+    // Check if we should use AI Engine (has API key configured)
+    const hasApiKey = localStorage.getItem('googleApiKey') ||
+                      localStorage.getItem('anthropicApiKey') ||
+                      localStorage.getItem('openaiApiKey');
+
+    // If AI Engine is available and has API key, delegate to full AI pipeline
+    if (window.AIEngine?.magicDesign && hasApiKey && !options.forceBasic) {
+        if (window.Utils?.DEBUG) console.log('[Magic Design] Delegating to AI Engine');
+        return window.AIEngine.magicDesign(options);
+    }
+
+    // Otherwise use basic design rules
+    return applyBasicMagicDesign(appName, options);
+}
+
+/**
+ * Apply basic magic design using local rules (no AI)
+ */
+function applyBasicMagicDesign(appName = '', options = {}) {
     const screenshot = state.screenshots[state.selectedIndex];
     if (!screenshot) {
-        console.warn('[Magic Design] No screenshot selected');
+        if (window.Utils?.DEBUG) console.warn('[Magic Design] No screenshot selected');
         return;
     }
 
-    console.log('[Magic Design] Starting transformation...');
+    if (window.Utils?.DEBUG) console.log('[Magic Design] Starting basic transformation...');
 
     // 1. Detect category and get profile
     const category = options.category || detectCategory(appName);
     const profile = CATEGORY_PROFILES[category] || CATEGORY_PROFILES.ecommerce;
 
-    // 2. Apply RULE 1: Device positioning (Y: 70-80%)
+    // 2. Initialize screenshot settings with defaults
     if (!screenshot.screenshot) {
-        screenshot.screenshot = {};
+        screenshot.screenshot = window.Utils?.deepClone(state.defaults.screenshot) || {};
     }
-    screenshot.screenshot.y = 72; // Optimal position
+
+    // 3. Get canvas dimensions for calculations
+    const dims = getCanvasDimensions();
+
+    // 4. Calculate optimal device Y position based on text settings (RULE 1 & 4)
+    const textSettings = getTextSettings();
+    const optimalY = window.Utils?.calculateOptimalDeviceY(dims, textSettings, state.currentLanguage)
+        || calculateLocalOptimalDeviceY(dims, textSettings);
+
+    // 5. Apply device positioning
+    screenshot.screenshot.y = optimalY;
     screenshot.screenshot.x = 50; // Centered horizontally
 
-    // 3. Apply RULE 8: Device scale (58-65%)
+    // 6. Apply RULE 8: Device scale (58-65%)
     screenshot.screenshot.scale = 62;
 
-    // 4. Apply RULE 7: Shadow settings
+    // 7. Apply RULE 7: Shadow settings
     screenshot.screenshot.shadow = {
         enabled: true,
         blur: 60,
@@ -4781,15 +4832,15 @@ function magicDesign(appName = '', options = {}) {
         color: '#000000'
     };
 
-    // 5. Apply RULE 6: Background color from category profile
+    // 8. Apply RULE 6: Background color from category profile
     const colorIndex = state.selectedIndex % profile.colors.length;
     if (!screenshot.background) {
-        screenshot.background = {};
+        screenshot.background = window.Utils?.deepClone(state.defaults.background) || {};
     }
     screenshot.background.type = 'solid';
-    screenshot.background.color = profile.colors[colorIndex];
+    screenshot.background.solid = profile.colors[colorIndex];
 
-    // 6. Apply RULE 2 & 12: Typography settings
+    // 9. Apply RULE 2 & 12: Typography settings
     state.text.headlineFont = profile.fonts.headline;
     state.text.subheadlineFont = profile.fonts.subheadline;
     state.text.headlineSize = 72;
@@ -4800,22 +4851,51 @@ function magicDesign(appName = '', options = {}) {
     state.text.offsetY = 8;
     state.text.headlineColor = '#FFFFFF';
 
-    // 7. Apply RULE 3: Subheadline settings
-    state.text.subheadlineSize = 20;
+    // 10. Apply RULE 3: Subheadline settings
+    state.text.subheadlineSize = 28;
     state.text.subheadlineWeight = '400';
     state.text.subheadlineOpacity = 75;
 
-    // 8. RULE 4: Validate text-device separation
-    const dims = getCanvasDimensions();
-    validateTextDeviceSeparation(true); // Auto-adjust if needed
-
-    // 9. Apply corner radius for modern look
+    // 11. Apply corner radius for modern look
     screenshot.screenshot.cornerRadius = 45;
 
-    console.log(`[Magic Design] Applied "${profile.name}" style to screenshot ${state.selectedIndex + 1}`);
+    // 12. Handle 3D mode if active
+    const ss = getScreenshotSettings();
+    if (ss.use3D) {
+        if (!screenshot.screenshot.rotation3D) {
+            screenshot.screenshot.rotation3D = { x: 0, y: 0, z: 0 };
+        }
+        // Apply subtle dynamic rotation for visual interest
+        screenshot.screenshot.rotation3D.y = -5 + (state.selectedIndex % 3) * 2;
+        screenshot.screenshot.rotation3D.x = 3;
 
+        // Update 3D renderer
+        if (typeof setThreeJSRotation === 'function') {
+            setThreeJSRotation(
+                screenshot.screenshot.rotation3D.x,
+                screenshot.screenshot.rotation3D.y,
+                screenshot.screenshot.rotation3D.z || 0
+            );
+        }
+    }
+
+    if (window.Utils?.DEBUG) {
+        console.log(`[Magic Design] Applied "${profile.name}" style to screenshot ${state.selectedIndex + 1}`);
+    }
+
+    // 13. Update UI and render
     syncUIWithState();
     updateCanvas();
+
+    // 14. FINAL: Validate text-device separation after render (RULE 4)
+    // This must happen after canvas dimensions are recalculated
+    setTimeout(() => {
+        const separationCheck = validateTextDeviceSeparation(true);
+        if (separationCheck && separationCheck.adjusted) {
+            if (window.Utils?.DEBUG) console.log('[Magic Design] Adjusted device position for text separation');
+            updateCanvas();
+        }
+    }, 50);
 
     return {
         category,
@@ -4824,19 +4904,51 @@ function magicDesign(appName = '', options = {}) {
     };
 }
 
+/**
+ * Calculate optimal device Y position locally (fallback when Utils not available)
+ */
+function calculateLocalOptimalDeviceY(dims, text) {
+    if (!dims || !text) return 72;
+
+    const headline = text.headlines?.[state.currentLanguage] || '';
+    const headlineLines = text.stackedText
+        ? headline.split(/\s+/).filter(w => w.length > 0).length
+        : 1;
+
+    const hasSubheadline = text.subheadlineEnabled && text.subheadlines?.[state.currentLanguage];
+    const headlineSize = text.headlineSize || 72;
+    const subheadlineSize = text.subheadlineSize || 28;
+    const lineHeight = headlineSize * ((text.lineHeight || 95) / 100);
+
+    const textHeight = (headlineLines * lineHeight)
+        + (hasSubheadline ? subheadlineSize * 1.5 + 16 : 0);
+
+    const textTopOffset = dims.height * ((text.offsetY || 8) / 100);
+    const minGap = 50; // RULE 4: 50px minimum gap
+
+    const contentBottom = textTopOffset + textHeight + minGap;
+    const deviceTopPercent = (contentBottom / dims.height) * 100;
+
+    // Return Y position clamped between reasonable values
+    return Math.min(85, Math.max(65, deviceTopPercent + 10));
+}
+
 // Apply Magic Design to all screenshots with consistent styling
 function magicDesignAll(appName = '', options = {}) {
     const category = options.category || detectCategory(appName);
     const profile = CATEGORY_PROFILES[category] || CATEGORY_PROFILES.ecommerce;
     const originalIndex = state.selectedIndex;
 
-    console.log(`[Magic Design] Applying "${profile.name}" style to all ${state.screenshots.length} screenshots...`);
+    if (window.Utils?.DEBUG) {
+        console.log(`[Magic Design] Applying "${profile.name}" style to all ${state.screenshots.length} screenshots...`);
+    }
 
     state.screenshots.forEach((screenshot, index) => {
         state.selectedIndex = index;
 
-        // Apply Magic Design with same category for consistency
-        magicDesign(appName, { category });
+        // Apply Magic Design with same category for consistency, force basic mode
+        // to avoid multiple AI calls
+        applyBasicMagicDesign(appName, { category, forceBasic: true });
     });
 
     // Restore original selection
@@ -4844,14 +4956,16 @@ function magicDesignAll(appName = '', options = {}) {
 
     // RULE 10: Ensure set consistency
     const consistency = validateSetConsistency();
-    if (!consistency.consistent) {
+    if (!consistency.consistent && window.Utils?.DEBUG) {
         console.warn('[Magic Design] Consistency issues:', consistency.issues);
     }
 
     syncUIWithState();
     updateCanvas();
 
-    console.log('[Magic Design] All screenshots transformed successfully!');
+    if (window.Utils?.DEBUG) {
+        console.log('[Magic Design] All screenshots transformed successfully!');
+    }
 }
 
 // Quick presets for common app types
@@ -5543,8 +5657,8 @@ function renderScreenshotToCanvas(index, targetCanvas, targetCtx, dims, previewS
 }
 
 function drawBackgroundToContext(context, dims, bg) {
-    if (bg.type === 'gradient') {
-        const angle = bg.gradient.angle * Math.PI / 180;
+    if (bg.type === 'gradient' && bg.gradient && bg.gradient.stops && bg.gradient.stops.length > 0) {
+        const angle = (bg.gradient.angle || 135) * Math.PI / 180;
         const x1 = dims.width / 2 - Math.cos(angle) * dims.width;
         const y1 = dims.height / 2 - Math.sin(angle) * dims.height;
         const x2 = dims.width / 2 + Math.cos(angle) * dims.width;
@@ -5557,8 +5671,12 @@ function drawBackgroundToContext(context, dims, bg) {
 
         context.fillStyle = gradient;
         context.fillRect(0, 0, dims.width, dims.height);
+    } else if (bg.type === 'gradient') {
+        // Fallback: gradient type but no valid gradient data
+        context.fillStyle = bg.solid || '#667eea';
+        context.fillRect(0, 0, dims.width, dims.height);
     } else if (bg.type === 'solid') {
-        context.fillStyle = bg.solid;
+        context.fillStyle = bg.solid || '#1a1a2e';
         context.fillRect(0, 0, dims.width, dims.height);
     } else if (bg.type === 'image' && bg.image) {
         const img = bg.image;
@@ -5848,8 +5966,8 @@ function drawBackground() {
     const dims = getCanvasDimensions();
     const bg = getBackground();
 
-    if (bg.type === 'gradient') {
-        const angle = bg.gradient.angle * Math.PI / 180;
+    if (bg.type === 'gradient' && bg.gradient && bg.gradient.stops && bg.gradient.stops.length > 0) {
+        const angle = (bg.gradient.angle || 135) * Math.PI / 180;
         const x1 = dims.width / 2 - Math.cos(angle) * dims.width;
         const y1 = dims.height / 2 - Math.sin(angle) * dims.height;
         const x2 = dims.width / 2 + Math.cos(angle) * dims.width;
@@ -5862,8 +5980,12 @@ function drawBackground() {
 
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, dims.width, dims.height);
+    } else if (bg.type === 'gradient') {
+        // Fallback: gradient type but no valid gradient data - use default
+        ctx.fillStyle = bg.solid || '#667eea';
+        ctx.fillRect(0, 0, dims.width, dims.height);
     } else if (bg.type === 'solid') {
-        ctx.fillStyle = bg.solid;
+        ctx.fillStyle = bg.solid || '#1a1a2e';
         ctx.fillRect(0, 0, dims.width, dims.height);
     } else if (bg.type === 'image' && bg.image) {
         const img = bg.image;

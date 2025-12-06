@@ -532,7 +532,7 @@ const LAYOUT_CONFIGS = {
  * Get layout configuration by ID
  */
 function getLayoutConfig(layoutId) {
-    return LAYOUT_CONFIGS[layoutId] || LAYOUT_CONFIGS['classic'];
+    return LAYOUT_CONFIGS[layoutId] || null;
 }
 
 /**
@@ -570,19 +570,35 @@ function getLayoutsForPosition(position) {
 
 /**
  * Apply layout to current screenshot state
+ * Note: Layout coordinates use offset from center, convert to percentage for screenshot
  */
 function applyLayout(layoutId, currentState) {
     const layout = getLayoutConfig(layoutId);
     if (!layout) return currentState;
 
-    const screenshot = currentState.screenshots[currentState.currentScreenshot];
+    const screenshotIndex = currentState.selectedIndex ?? currentState.currentScreenshot ?? 0;
+    const screenshot = currentState.screenshots[screenshotIndex];
     if (!screenshot) return currentState;
 
-    // Apply device positioning
-    screenshot.scale = layout.device.scale * 100;
-    screenshot.x = layout.device.x;
-    screenshot.y = layout.device.y;
-    screenshot.rotation = layout.device.rotation;
+    // Initialize screenshot settings if needed
+    if (!screenshot.screenshot) {
+        screenshot.screenshot = {};
+    }
+
+    // Convert layout coordinates to screenshot percentages
+    // Layout uses offset from center: x: -40 to +40, y: offset
+    // Screenshot uses absolute percentage: x: 0-100 (50 = center)
+    const position = window.Utils?.convertLayoutToScreenshotPosition(layout) || {
+        scale: layout.device.scale * 100,
+        x: 50 + (layout.device.x || 0),
+        y: 50 + (layout.device.y || 0),
+        rotation: layout.device.rotation || 0
+    };
+
+    screenshot.screenshot.scale = position.scale;
+    screenshot.screenshot.x = position.x;
+    screenshot.screenshot.y = position.y;
+    screenshot.screenshot.rotation = position.rotation;
 
     // Store layout info
     screenshot.layout = layoutId;
@@ -596,6 +612,7 @@ function applyLayout(layoutId, currentState) {
  */
 function getLayoutThumbnail(layoutId) {
     const layout = getLayoutConfig(layoutId);
+    if (!layout) return null;
     return {
         id: layoutId,
         name: layout.name,
