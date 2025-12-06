@@ -95,8 +95,12 @@
     <h1>App Store Screenshot Generator - Test Suite</h1>
 
     <button class="run-btn" onclick="runAllTests()">Run All Tests</button>
+    <button class="run-btn" onclick="runAllTests(true)" style="background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); margin-left: 10px;">Run in Main App Context</button>
 
     <div id="results"></div>
+
+    <h2>Test Categories</h2>
+    <div id="categories"></div>
 
     <h2>Console Output</h2>
     <div id="output"></div>
@@ -104,6 +108,8 @@
     <!-- Load dependencies first -->
     <script src="../utils.js"></script>
     <script src="../layouts.js"></script>
+    <script src="../language-utils.js"></script>
+    <script src="../undo-redo.js"></script>
 
     <script>
         // Capture console output
@@ -112,71 +118,121 @@
         const originalError = console.error;
         const originalWarn = console.warn;
 
-        function appendOutput(text, type = 'log') {
+        function appendOutput(text, type) {
+            type = type || 'log';
             const line = document.createElement('div');
             line.textContent = text;
             if (type === 'error') line.style.color = '#e74c3c';
             if (type === 'warn') line.style.color = '#f1c40f';
+            if (type === 'success') line.style.color = '#2ecc71';
             outputDiv.appendChild(line);
             outputDiv.scrollTop = outputDiv.scrollHeight;
         }
 
-        console.log = function(...args) {
+        console.log = function() {
+            var args = Array.prototype.slice.call(arguments);
             originalLog.apply(console, args);
             appendOutput(args.join(' '), 'log');
         };
-        console.error = function(...args) {
+        console.error = function() {
+            var args = Array.prototype.slice.call(arguments);
             originalError.apply(console, args);
             appendOutput(args.join(' '), 'error');
         };
-        console.warn = function(...args) {
+        console.warn = function() {
+            var args = Array.prototype.slice.call(arguments);
             originalWarn.apply(console, args);
             appendOutput(args.join(' '), 'warn');
         };
 
         // Test runner
-        async function runAllTests() {
+        async function runAllTests(inMainContext) {
             outputDiv.innerHTML = '';
-            document.getElementById('results').innerHTML = '<p>Running tests...</p>';
+            document.getElementById('results').innerHTML = '<p style="color: #667eea;">Running tests...</p>';
+            document.getElementById('categories').innerHTML = '';
 
             let totalPassed = 0;
             let totalFailed = 0;
+            const categoryResults = [];
 
-            // Load and run test files
+            // All test files
             const testFiles = [
-                'test-utils.js',
-                'test-layouts.js'
+                { name: 'Utility Functions', file: 'test-utils.js' },
+                { name: 'Layout Engine', file: 'test-layouts.js' },
+                { name: 'Language Utils', file: 'test-language-utils.js' },
+                { name: 'Core App Functions', file: 'test-core.js' },
+                { name: 'Bug Fixes', file: 'test-bugfixes.js' },
+                { name: 'Three.js Renderer', file: 'test-three-renderer.js' }
             ];
 
-            for (const file of testFiles) {
-                console.log(`\\n>>> Loading ${file}...\\n`);
+            for (var i = 0; i < testFiles.length; i++) {
+                var testInfo = testFiles[i];
+                console.log('\n>>> Loading ' + testInfo.file + '...\n');
                 try {
-                    const response = await fetch(file);
-                    const code = await response.text();
-                    const result = eval(code);
+                    var response = await fetch(testInfo.file);
+                    var code = await response.text();
+                    var result = eval(code);
                     if (result) {
                         totalPassed += result.passed || 0;
                         totalFailed += result.failed || 0;
+                        categoryResults.push({
+                            name: testInfo.name,
+                            passed: result.passed || 0,
+                            failed: result.failed || 0
+                        });
                     }
                 } catch (e) {
-                    console.error(`Failed to load ${file}: ${e.message}`);
+                    console.error('Failed to load ' + testInfo.file + ': ' + e.message);
                     totalFailed++;
+                    categoryResults.push({
+                        name: testInfo.name,
+                        passed: 0,
+                        failed: 1,
+                        error: e.message
+                    });
                 }
             }
 
+            // Show category breakdown
+            var categoriesHtml = '<div class="test-section">';
+            for (var j = 0; j < categoryResults.length; j++) {
+                var cat = categoryResults[j];
+                var status = cat.failed === 0 ? 'pass' : 'fail';
+                categoriesHtml += '<div class="test-result ' + status + '">';
+                categoriesHtml += (status === 'pass' ? '✓' : '✗') + ' ' + cat.name + ': ';
+                categoriesHtml += cat.passed + ' passed, ' + cat.failed + ' failed';
+                if (cat.error) {
+                    categoriesHtml += '<div class="error-message">' + cat.error + '</div>';
+                }
+                categoriesHtml += '</div>';
+            }
+            categoriesHtml += '</div>';
+            document.getElementById('categories').innerHTML = categoriesHtml;
+
             // Show summary
-            document.getElementById('results').innerHTML = `
-                <div class="summary">
-                    <span class="passed">Passed: ${totalPassed}</span> |
-                    <span class="failed">Failed: ${totalFailed}</span>
-                </div>
-            `;
+            var summaryClass = totalFailed === 0 ? 'passed' : 'failed';
+            document.getElementById('results').innerHTML =
+                '<div class="summary">' +
+                '<span class="passed">✓ Passed: ' + totalPassed + '</span> | ' +
+                '<span class="failed">✗ Failed: ' + totalFailed + '</span>' +
+                '</div>';
+
+            if (totalFailed === 0) {
+                console.log('\n🎉 All tests passed!\n');
+            } else {
+                console.error('\n⚠️ Some tests failed. Check output above.\n');
+            }
         }
 
         // Auto-run on load
-        window.onload = () => {
+        window.onload = function() {
             console.log('Test suite loaded. Click "Run All Tests" to begin.');
+            console.log('For full integration tests, open index.html in the main app and run:');
+            console.log('  runIntegrationTests()');
         };
+
+        // Export for main app context
+        window.runIntegrationTests = runAllTests;
     </script>
 </body>
 </html>

@@ -4,9 +4,12 @@
   "description": "App Store Screenshot Generator",
   "main": "app.js",
   "scripts": {
+    "test": "node tests/run-tests.js",
+    "test:browser": "echo 'Open http://localhost:8000/tests/ in browser'",
     "lint": "eslint *.js --no-error-on-unmatched-pattern",
     "lint:fix": "eslint *.js --fix --no-error-on-unmatched-pattern",
-    "serve": "python3 -m http.server 8000"
+    "serve": "python3 -m http.server 8000",
+    "check": "npm run lint && npm run test"
   },
   "devDependencies": {
     "eslint": "^8.57.0"
