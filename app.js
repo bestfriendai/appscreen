@@ -6206,13 +6206,13 @@ function drawText() {
             // Draw underline (using 'top' baseline for subheadline)
             if (text.subheadlineUnderline) {
                 const underlineY = y + fontSize * 0.9;
-                ctx.fillRect(x, underlineY, textWidth, lineThickness);
+                ctx.fillRect(subDecorX, underlineY, textWidth, lineThickness);
             }
 
             // Draw strikethrough
             if (text.subheadlineStrikethrough) {
                 const strikeY = y + fontSize * 0.4;
-                ctx.fillRect(x, strikeY, textWidth, lineThickness);
+                ctx.fillRect(subDecorX, strikeY, textWidth, lineThickness);
             }
         });
 
