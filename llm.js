@@ -1,17 +1,18 @@
 // LLM Provider Configuration
-// Gemini 3.0 - Google's latest AI model
+// Gemini 2.0 Flash - Google's latest GA AI model
 
 const llmProviders = {
     google: {
-        name: 'Google Gemini 3.0',
+        name: 'Google Gemini',
         keyPrefix: 'AIza',
         storageKey: 'googleApiKey',
         modelStorageKey: 'googleModel',
         models: [
-            { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro (Recommended)' },
-            { id: 'gemini-3-pro-image-preview', name: 'Gemini 3.0 Pro Image (For visuals)' }
+            { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Recommended)' },
+            { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Latest)' },
+            { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Legacy)' }
         ],
-        defaultModel: 'gemini-3-pro-preview'
+        defaultModel: 'gemini-2.0-flash'
     }
 };
 

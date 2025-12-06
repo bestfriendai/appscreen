@@ -60,13 +60,13 @@ const GENERATION_STAGES = [
 ];
 
 /**
- * Make API call to Gemini 3.0
+ * Make API call to Gemini
  */
 async function callAI(prompt, options = {}) {
     const apiKey = localStorage.getItem('googleApiKey');
-    const model = localStorage.getItem('googleModel') || 'gemini-3-pro-preview';
+    const model = localStorage.getItem('googleModel') || 'gemini-2.0-flash';
 
-    console.log('[callAI] Using Gemini 3.0');
+    console.log('[callAI] Using Gemini');
     console.log('[callAI] Model:', model);
     console.log('[callAI] API Key present:', !!apiKey);
     console.log('[callAI] API Key prefix:', apiKey?.substring(0, 10) + '...');
@@ -81,10 +81,10 @@ async function callAI(prompt, options = {}) {
 }
 
 /**
- * Call Google Gemini 3.0 API
+ * Call Google Gemini API
  */
 async function callGemini(apiKey, model, prompt, options = {}) {
-    const modelToUse = model || 'gemini-3-pro-preview';
+    const modelToUse = model || 'gemini-2.0-flash';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${apiKey}`;
 
     console.log('[Gemini API] Model:', modelToUse);

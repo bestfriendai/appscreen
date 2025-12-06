@@ -1920,35 +1920,35 @@
     <!-- jsPDF for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-    <!-- Core modules (v2 cache bust) -->
-    <script src="llm.js?v=2"></script>
-    <script src="language-utils.js?v=2"></script>
-    <script src="magical-titles.js?v=2"></script>
-    <script src="three-renderer.js?v=2"></script>
+    <!-- Core modules (v5 cache bust) -->
+    <script src="llm.js?v=5"></script>
+    <script src="language-utils.js?v=5"></script>
+    <script src="magical-titles.js?v=5"></script>
+    <script src="three-renderer.js?v=5"></script>
 
-    <!-- New combined features (v2 cache bust) -->
-    <script src="layouts.js?v=3"></script>
-    <script src="themes.js?v=3"></script>
-    <script src="widgets.js?v=3"></script>
-    <script src="backgrounds.js?v=3"></script>
-    <script src="category-detection.js?v=3"></script>
-    <script src="smart-layout.js?v=3"></script>
-    <script src="agents.js?v=3"></script>
-    <script src="undo-redo.js?v=3"></script>
-    <script src="onboarding.js?v=3"></script>
-    <script src="ai-engine.js?v=3"></script>
-    <script src="fresh-templates.js?v=1"></script>
+    <!-- New combined features (v5 cache bust) -->
+    <script src="layouts.js?v=5"></script>
+    <script src="themes.js?v=5"></script>
+    <script src="widgets.js?v=5"></script>
+    <script src="backgrounds.js?v=5"></script>
+    <script src="category-detection.js?v=5"></script>
+    <script src="smart-layout.js?v=5"></script>
+    <script src="agents.js?v=5"></script>
+    <script src="undo-redo.js?v=5"></script>
+    <script src="onboarding.js?v=5"></script>
+    <script src="ai-engine.js?v=5"></script>
+    <script src="fresh-templates.js?v=5"></script>
 
-    <!-- Auto-configure Google Gemini 3.0 API -->
+    <!-- Auto-configure Google Gemini API -->
     <script>
-        // Always use Gemini 3.0 Pro
+        // Always use Gemini 2.0 Flash (GA model)
         localStorage.setItem('googleApiKey', 'AIzaSyCA8xsXUhakUywN3ghzy7qR6jBQuyrs7Ng');
         localStorage.setItem('aiProvider', 'google');
-        localStorage.setItem('googleModel', 'gemini-3-pro-preview');
-        console.log('[Config] Gemini 3.0 Pro configured');
+        localStorage.setItem('googleModel', 'gemini-2.0-flash');
+        console.log('[Config] Gemini 2.0 Flash configured');
     </script>
 
-    <!-- Main application (v2 cache bust) -->
-    <script src="app.js?v=2"></script>
+    <!-- Main application (v5 cache bust) -->
+    <script src="app.js?v=5"></script>
 </body>
 </html>

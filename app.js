@@ -6677,29 +6677,34 @@ async function exportAllLanguages() {
 // ======================================
 
 // Magic Design Button Handler - Show Input Modal First
-document.getElementById('magic-design-btn')?.addEventListener('click', async () => {
-    if (state.screenshots.length === 0) {
-        alert('Please upload at least one screenshot first.');
-        return;
-    }
+const _magicDesignBtn = document.getElementById('magic-design-btn');
+console.log('[Magic Design] Registering button handler, element:', _magicDesignBtn);
 
-    // Check for API key
-    const provider = localStorage.getItem('aiProvider') || 'google';
-    const apiKey = localStorage.getItem(
-        provider === 'anthropic' ? 'claudeApiKey' :
-            provider === 'openai' ? 'openaiApiKey' :
-                'googleApiKey'
-    );
+if (_magicDesignBtn) {
+    _magicDesignBtn.addEventListener('click', async () => {
+        console.log('[Magic Design] Button clicked! Screenshots:', state.screenshots.length);
 
-    // If no API key, use local Magic Design (applies design rules without AI)
-    if (!apiKey) {
-        const useLocal = confirm('No API key found. Apply professional design rules locally?\n\n(Add an API key in Settings for AI-powered headline generation)');
-        if (useLocal) {
-            console.log('[Magic Design] Applying local design rules...');
-            magicDesignAll();
+        if (state.screenshots.length === 0) {
+            alert('Please upload at least one screenshot first.');
+            return;
         }
-        return;
-    }
+
+        // Check for API key
+        const provider = localStorage.getItem('aiProvider') || 'google';
+        const apiKey = localStorage.getItem(
+            provider === 'anthropic' ? 'claudeApiKey' :
+                provider === 'openai' ? 'openaiApiKey' :
+                    'googleApiKey'
+        );
+
+        console.log('[Magic Design] API Key exists:', !!apiKey);
+
+        // If no API key, use local Magic Design (applies design rules without AI)
+        if (!apiKey) {
+            console.log('[Magic Design] No API key, using local design rules');
+            magicDesignAll();
+            return;
+        }
 
     // Show input modal
     const inputModal = document.getElementById('magic-design-input-modal');
@@ -6726,7 +6731,10 @@ document.getElementById('magic-design-btn')?.addEventListener('click', async () 
 
     inputModal.classList.add('active');
     appNameInput.focus();
-});
+    });
+} else {
+    console.warn('[Magic Design] Button element not found!');
+}
 
 // Cancel button on input modal
 document.getElementById('magic-input-cancel')?.addEventListener('click', () => {
