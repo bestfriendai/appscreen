@@ -105,11 +105,313 @@
     <h2>Console Output</h2>
     <div id="output"></div>
 
-    <!-- Load dependencies first -->
-    <script src="../utils.js"></script>
-    <script src="../layouts.js"></script>
-    <script src="../language-utils.js"></script>
-    <script src="../undo-redo.js"></script>
+    <!-- Load THREE.js first -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <!-- Load JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <!-- Create comprehensive mock DOM elements for testing -->
+    <div id="mock-elements" style="display:none;">
+        <!-- Canvas elements -->
+        <canvas id="main-canvas" width="1290" height="2796"></canvas>
+        <canvas id="preview-canvas" width="1290" height="2796"></canvas>
+        <canvas id="preview-canvas-left" width="400" height="600"></canvas>
+        <canvas id="preview-canvas-right" width="400" height="600"></canvas>
+        <canvas id="preview-canvas-far-left" width="400" height="600"></canvas>
+        <canvas id="preview-canvas-far-right" width="400" height="600"></canvas>
+        <canvas id="three-preview" width="400" height="600"></canvas>
+        <canvas id="duplicate-preview-existing"></canvas>
+        <canvas id="duplicate-preview-new"></canvas>
+
+        <!-- Preview containers -->
+        <div id="side-preview-left"><canvas></canvas></div>
+        <div id="side-preview-right"><canvas></canvas></div>
+        <div id="side-preview-far-left"></div>
+        <div id="side-preview-far-right"></div>
+        <div class="preview-strip"></div>
+        <div id="canvas-wrapper"></div>
+        <div id="threejs-container"></div>
+
+        <!-- Screenshot management -->
+        <div id="screenshot-list"></div>
+        <div id="no-screenshot"></div>
+        <div id="upload-area"></div>
+        <input type="file" id="file-input">
+        <button id="main-upload-btn"></button>
+        <button id="prev-screenshot"></button>
+        <button id="next-screenshot"></button>
+
+        <!-- Project management -->
+        <div id="project-dropdown"></div>
+        <div id="project-menu"></div>
+        <div id="project-trigger"></div>
+        <div id="project-trigger-name"></div>
+        <div id="project-trigger-meta"></div>
+        <button id="new-project-btn"></button>
+        <button id="rename-project-btn"></button>
+        <button id="delete-project-btn"></button>
+        <div id="project-modal"></div>
+        <input type="text" id="project-name-input">
+        <button id="project-modal-confirm"></button>
+        <button id="project-modal-cancel"></button>
+        <div id="delete-project-modal"></div>
+        <button id="delete-project-confirm"></button>
+        <button id="delete-project-cancel"></button>
+        <div id="migration-modal"></div>
+
+        <!-- Output settings -->
+        <div id="output-size-menu" class="output-size-menu"></div>
+        <div id="output-size-name"></div>
+        <div id="output-size-dims"></div>
+        <div id="custom-size-inputs"></div>
+        <input type="number" id="custom-width" value="1290">
+        <input type="number" id="custom-height" value="2796">
+
+        <!-- Background settings -->
+        <div id="bg-type-selector"></div>
+        <div id="gradient-options"></div>
+        <div id="solid-options"></div>
+        <div id="image-options"></div>
+        <div id="gradient-stops"></div>
+        <input type="range" id="gradient-angle" value="180">
+        <div id="gradient-angle-value"></div>
+        <button id="add-gradient-stop"></button>
+        <input type="color" id="solid-color" value="#1a1a2e">
+        <input type="text" id="solid-color-hex" value="#1a1a2e">
+        <input type="file" id="bg-image-input">
+        <div id="bg-image-preview"></div>
+        <select id="bg-image-fit"><option value="cover">Cover</option></select>
+        <input type="range" id="bg-blur" value="0">
+        <div id="bg-blur-value"></div>
+        <input type="color" id="bg-overlay-color" value="#000000">
+        <input type="text" id="bg-overlay-hex" value="#000000">
+        <input type="range" id="bg-overlay-opacity" value="0">
+        <div id="bg-overlay-opacity-value"></div>
+
+        <!-- Noise settings -->
+        <button id="noise-toggle"></button>
+        <input type="range" id="noise-intensity" value="10">
+        <div id="noise-intensity-value"></div>
+
+        <!-- Screenshot position settings -->
+        <input type="range" id="screenshot-scale" value="65">
+        <div id="screenshot-scale-value"></div>
+        <input type="range" id="screenshot-y" value="70">
+        <div id="screenshot-y-value"></div>
+        <input type="range" id="screenshot-x" value="50">
+        <div id="screenshot-x-value"></div>
+        <input type="range" id="corner-radius" value="45">
+        <div id="corner-radius-value"></div>
+        <input type="range" id="screenshot-rotation" value="0">
+        <div id="screenshot-rotation-value"></div>
+
+        <!-- Shadow settings -->
+        <button id="shadow-toggle"></button>
+        <input type="color" id="shadow-color" value="#000000">
+        <input type="text" id="shadow-color-hex" value="#000000">
+        <input type="range" id="shadow-blur" value="40">
+        <div id="shadow-blur-value"></div>
+        <input type="range" id="shadow-opacity" value="30">
+        <div id="shadow-opacity-value"></div>
+        <input type="range" id="shadow-x" value="0">
+        <div id="shadow-x-value"></div>
+        <input type="range" id="shadow-y" value="10">
+        <div id="shadow-y-value"></div>
+
+        <!-- Frame settings -->
+        <button id="frame-toggle"></button>
+        <input type="color" id="frame-color" value="#ffffff">
+        <input type="text" id="frame-color-hex" value="#ffffff">
+        <input type="range" id="frame-width" value="0">
+        <div id="frame-width-value"></div>
+        <input type="range" id="frame-opacity" value="100">
+        <div id="frame-opacity-value"></div>
+
+        <!-- Text settings -->
+        <input type="text" id="headline-text" value="">
+        <select id="headline-font"><option value="SF Pro Display">SF Pro Display</option></select>
+        <input type="range" id="headline-size" value="72">
+        <input type="color" id="headline-color" value="#ffffff">
+        <select id="headline-weight"><option value="700">Bold</option></select>
+        <div id="headline-style"></div>
+        <button id="headline-toggle"></button>
+        <input type="text" id="subheadline-text" value="">
+        <select id="subheadline-font"><option value="SF Pro Display">SF Pro Display</option></select>
+        <input type="range" id="subheadline-size" value="36">
+        <input type="color" id="subheadline-color" value="#cccccc">
+        <input type="range" id="subheadline-opacity" value="100">
+        <div id="subheadline-opacity-value"></div>
+        <select id="subheadline-weight"><option value="400">Regular</option></select>
+        <div id="subheadline-style"></div>
+        <button id="subheadline-toggle"></button>
+        <div id="text-position"></div>
+        <input type="range" id="text-offset-y" value="8">
+        <div id="text-offset-y-value"></div>
+        <input type="range" id="line-height" value="95">
+        <div id="line-height-value"></div>
+
+        <!-- Device settings -->
+        <div id="device-type-selector"><button data-type="2d" class="active">2D</button><button data-type="3d">3D</button></div>
+        <div id="rotation-3d-options"></div>
+        <input type="range" id="rotation-3d-x" value="0">
+        <div id="rotation-3d-x-value"></div>
+        <input type="range" id="rotation-3d-y" value="0">
+        <div id="rotation-3d-y-value"></div>
+        <input type="range" id="rotation-3d-z" value="0">
+        <div id="rotation-3d-z-value"></div>
+        <div id="2d-only-settings"></div>
+        <div id="position-presets-section"></div>
+        <div id="3d-tip"></div>
+        <select id="device-model"><option value="iPhone">iPhone</option></select>
+
+        <!-- Language settings -->
+        <button id="language-btn"></button>
+        <div id="language-menu"></div>
+        <button id="edit-languages-btn"></button>
+        <div id="languages-modal"></div>
+        <button id="languages-modal-close"></button>
+        <button id="languages-modal-done"></button>
+        <select id="add-language-select"><option value="">Add...</option></select>
+        <div id="available-languages"></div>
+        <div id="project-languages"></div>
+
+        <!-- Translation settings -->
+        <button id="translate-all-btn"></button>
+        <div id="translate-modal"></div>
+        <button id="translate-headline-btn"></button>
+        <button id="translate-subheadline-btn"></button>
+        <select id="translate-source-lang"><option value="en">English</option></select>
+        <button id="translate-modal-cancel"></button>
+        <button id="translate-modal-apply"></button>
+        <button id="ai-translate-btn"></button>
+        <div id="screenshot-translations-modal"></div>
+        <button id="screenshot-translations-modal-close"></button>
+        <button id="screenshot-translations-modal-done"></button>
+        <div id="screenshot-translations-list"></div>
+        <input type="file" id="translation-file-input">
+
+        <!-- Export language modal -->
+        <div id="export-language-modal"></div>
+        <button id="export-current-only"></button>
+        <button id="export-all-languages"></button>
+        <button id="export-language-modal-cancel"></button>
+
+        <!-- Duplicate screenshot modal -->
+        <div id="duplicate-screenshot-modal"></div>
+        <div id="duplicate-existing-name"></div>
+        <div id="duplicate-new-name"></div>
+        <div id="duplicate-language"></div>
+        <button id="duplicate-replace"></button>
+        <button id="duplicate-create"></button>
+        <button id="duplicate-skip"></button>
+
+        <!-- Magical titles -->
+        <button id="magical-titles-btn"></button>
+        <div id="magical-titles-modal"></div>
+        <button id="magical-titles-cancel"></button>
+        <button id="magical-titles-confirm"></button>
+        <div id="magical-titles-tooltip"></div>
+        <div id="magical-titles-dialog"></div>
+
+        <!-- Apply style modal -->
+        <div id="apply-style-modal"></div>
+        <button id="apply-style-confirm"></button>
+        <button id="apply-style-cancel"></button>
+        <div id="presets-grid"></div>
+
+        <!-- Settings modal -->
+        <div id="settings-modal"></div>
+        <button id="settings-btn"></button>
+        <button id="settings-modal-close"></button>
+        <button id="settings-modal-cancel"></button>
+        <button id="settings-modal-save"></button>
+        <select id="ai-provider"><option value="google">Google</option></select>
+        <input type="text" id="google-api-key">
+        <input type="text" id="anthropic-api-key">
+        <input type="text" id="openai-api-key">
+        <select id="google-model"><option value="gemini-2.0-flash">Gemini 2.0 Flash</option></select>
+        <select id="anthropic-model"><option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option></select>
+        <select id="openai-model"><option value="gpt-4o">GPT-4o</option></select>
+
+        <!-- About modal -->
+        <div id="about-modal"></div>
+        <button id="about-btn"></button>
+        <button id="about-modal-close"></button>
+
+        <!-- Export buttons -->
+        <button id="export-btn"></button>
+        <button id="export-all-btn"></button>
+        <div id="export-progress-modal"></div>
+        <div id="export-progress-status"></div>
+        <div id="export-progress-detail"></div>
+        <div id="export-progress-fill"></div>
+
+        <!-- Magic Design -->
+        <button id="magic-design-btn"></button>
+        <div id="magic-design-input-modal"></div>
+        <input type="text" id="magic-app-name">
+        <textarea id="magic-app-description"></textarea>
+        <button id="magic-design-start"></button>
+        <button id="magic-design-cancel"></button>
+        <div id="magic-design-progress-modal"></div>
+        <div id="magic-design-progress-status"></div>
+        <div id="magic-design-progress-detail"></div>
+        <div id="magic-design-progress-fill"></div>
+
+        <!-- Undo/Redo -->
+        <button id="undo-btn"></button>
+        <button id="redo-btn"></button>
+
+        <!-- Layout and theme grids -->
+        <div id="layouts-grid"></div>
+        <div id="themes-grid"></div>
+        <div id="backgrounds-grid"></div>
+        <div id="templates-grid"></div>
+
+        <!-- Font pickers -->
+        <div class="font-picker" id="headline-font-picker"></div>
+        <div class="font-picker" id="subheadline-font-picker"></div>
+    </div>
+
+    <!-- Error handler to catch script loading errors -->
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            console.error('Script Error:', msg, 'at', url, 'line', line);
+            return false;
+        };
+    </script>
+
+    <!-- Load all app dependencies in correct order with cache-busting -->
+    <script src="../utils.js?v=3"></script>
+    <script src="../layouts.js?v=3"></script>
+    <script src="../undo-redo.js?v=3"></script>
+    <script src="../language-utils.js?v=3"></script>
+    <script src="../llm.js?v=3"></script>
+    <script src="../agents.js?v=3"></script>
+    <script src="../three-renderer.js?v=3"></script>
+    <script src="../ai-engine.js?v=3"></script>
+    <script src="../app.js?v=3"></script>
+
+    <!-- Verify all scripts loaded -->
+    <script>
+        console.log('=== Script Loading Diagnostic ===');
+        console.log('window.Utils:', typeof window.Utils !== 'undefined' ? 'LOADED' : 'MISSING');
+        console.log('window.LayoutEngine:', typeof window.LayoutEngine !== 'undefined' ? 'LOADED' : 'MISSING');
+        console.log('window.UndoRedo:', typeof window.UndoRedo !== 'undefined' ? 'LOADED' : 'MISSING');
+        console.log('window.languageFlags:', typeof window.languageFlags !== 'undefined' ? 'LOADED' : 'MISSING');
+        console.log('window.AIAgents:', typeof window.AIAgents !== 'undefined' ? 'LOADED' : 'MISSING');
+        console.log('window.THREE:', typeof window.THREE !== 'undefined' ? 'LOADED' : 'MISSING');
+        console.log('window.AIEngine:', typeof window.AIEngine !== 'undefined' ? 'LOADED' : 'MISSING');
+        console.log('window.state:', typeof window.state !== 'undefined' ? 'LOADED' : 'MISSING');
+        console.log('window.getCurrentScreenshot:', typeof window.getCurrentScreenshot !== 'undefined' ? 'LOADED' : 'MISSING');
+        console.log('=================================');
+
+        if (typeof window.state === 'undefined') {
+            console.error('ERROR: window.state is undefined - app.js may have thrown an error');
+        }
+    </script>
 
     <script>
         // Capture console output

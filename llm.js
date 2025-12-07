@@ -16,7 +16,7 @@ const llmProviders = {
 };
 
 // Default provider is always Google
-const DEFAULT_PROVIDER = 'google';
+const _DEFAULT_PROVIDER = 'anthropic';
 
 /**
  * Get the selected model
@@ -46,16 +46,14 @@ function getSelectedProvider() {
 }
 
 /**
- * Default Gemini 3 API key
- */
-const DEFAULT_API_KEY = 'AIzaSyBFVCWZnc6wKlOeoCwBf_lbWiVKuyRurx0';
-
-/**
  * Get API key
- * @returns {string} - API key (uses default if not set)
+ * @returns {string|null} - API key from .env.local, localStorage, or null
  */
 function getApiKey() {
-    return localStorage.getItem(llmProviders.google.storageKey) || DEFAULT_API_KEY;
+    // Priority: localStorage > .env.local
+    return localStorage.getItem(llmProviders.google.storageKey)
+        || window.ENV?.GOOGLE_API_KEY
+        || null;
 }
 
 /**

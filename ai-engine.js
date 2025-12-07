@@ -213,7 +213,7 @@ Return ONLY valid JSON (no markdown, no explanation):
  */
 async function planDesignStrategy(analysis, options = {}) {
     const screenshotCount = state.screenshots.length;
-    const category = analysis.app.category;
+    const _category = analysis.app.category;
 
     // Determine theme
     let theme = options.theme || 'auto';
@@ -1325,7 +1325,7 @@ async function generateStoryFlow(flowType = 'journey', options = {}) {
 /**
  * Generate story-driven headlines using AI
  */
-async function generateStoryHeadlines(analysis, flow, options = {}) {
+async function generateStoryHeadlines(analysis, flow, _options = {}) {
     const screenshots = state.screenshots;
     const numScreenshots = screenshots.length;
     const sequence = flow.sequence.slice(0, numScreenshots);
@@ -1337,7 +1337,7 @@ async function generateStoryHeadlines(analysis, flow, options = {}) {
         : [];
 
     // Get app name from primary function or use generic
-    const appName = analysis.app?.primaryFunction?.split(' ')[0] || 'App';
+    const _appName = analysis.app?.primaryFunction?.split(' ')[0] || 'App';
     const category = analysis.app?.category || 'generic';
     const vibe = analysis.app?.vibe || 'professional';
 
@@ -1411,7 +1411,7 @@ Return ONLY a JSON array of strings, no markdown:
 /**
  * Apply visual flow - coordinated color progression
  */
-async function applyVisualFlow(flow, analysis) {
+async function applyVisualFlow(flow, _analysis) {
     const screenshots = state.screenshots;
 
     // Define color progressions for different flows

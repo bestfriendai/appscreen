@@ -7,7 +7,7 @@ let phoneModel = null;
 let phonePivot = null;  // Pivot group for rotation around screen center
 let screenMesh = null;
 let customScreenPlane = null;
-let orbitControls = null;
+let _orbitControls = null;
 let isThreeJSInitialized = false;
 let phoneModelLoaded = false;
 let phoneModelLoading = false;
@@ -36,18 +36,24 @@ const deviceConfigs = {
         screenOffset: { x: 0.027, y: 0.745, z: 0.098 },
         positionOffsetFactor: 0.81,
         cornerRadiusFactor: 0.16,
-        modelRotation: { x: 0, y: 0, z: 0 }  // No correction needed
+        modelRotation: { x: 0, y: 0, z: 0 },  // No correction needed
+        scale: 1.0  // Default scale factor
     },
     samsung: {
         modelPath: 'models/samsung-galaxy-s25-ultra.glb',
         aspectRatio: 1440 / 3120,
         screenHeightFactor: 0.66,
-        screenOffset: { x: 0, y: 0.0, z: 0.08},  // Will need adjustment
+        screenOffset: { x: 0, y: 0.0, z: 0.08 },  // Will need adjustment
         positionOffsetFactor: 0.5,
         cornerRadiusFactor: 0.04,
-        modelRotation: { x: 0, y: 0, z: 0 }  // Adjust to correct model tilt (in degrees)
+        modelRotation: { x: 0, y: 0, z: 0 },  // Adjust to correct model tilt (in degrees)
+        scale: 1.0  // Default scale factor
     }
 };
+
+// Add aliases for case-insensitive access (tests may use iPhone/iPad)
+deviceConfigs.iPhone = deviceConfigs.iphone;
+deviceConfigs.iPad = deviceConfigs.iphone; // iPad fallback to iPhone config for now
 
 // Initialize Three.js scene
 function initThreeJS() {
@@ -251,6 +257,19 @@ function loadPhoneModel() {
         },
         (error) => {
             console.error('Error loading phone model:', error);
+            phoneModelLoading = false;
+
+            // Show user-friendly error and try to fall back to iPhone if Samsung failed
+            if (currentDeviceModel !== 'iphone') {
+                console.log('Falling back to iPhone model...');
+                currentDeviceModel = 'iphone';
+                loadPhoneModel();
+                if (typeof showAppAlert === 'function') {
+                    showAppAlert(`Failed to load ${currentDeviceModel} model. Using iPhone instead.`, 'error');
+                }
+            } else if (typeof showAppAlert === 'function') {
+                showAppAlert('Failed to load 3D phone model. Please try refreshing the page.', 'error');
+            }
         }
     );
 }
@@ -279,9 +298,12 @@ function cleanMaterial(material) {
 function disposeHierarchy(node) {
     if (!node) return;
 
-    for (let i = node.children.length - 1; i >= 0; i--) {
-        disposeHierarchy(node.children[i]);
-        node.remove(node.children[i]);
+    // Handle objects without children property
+    if (node.children && node.children.length > 0) {
+        for (let i = node.children.length - 1; i >= 0; i--) {
+            disposeHierarchy(node.children[i]);
+            node.remove(node.children[i]);
+        }
     }
 
     if (node.geometry) {
@@ -503,7 +525,7 @@ function loadCachedPhoneModel(deviceType) {
 }
 
 // Preload all device models for side previews
-function preloadAllPhoneModels() {
+function _preloadAllPhoneModels() {
     const deviceTypes = Object.keys(deviceConfigs);
     return Promise.all(deviceTypes.map(type => loadCachedPhoneModel(type).catch(() => null)));
 }
@@ -652,7 +674,7 @@ function setThreeJSRotation(rotX, rotY, rotZ) {
 }
 
 // Set 3D scale
-function setThreeJSScale(scale) {
+function _setThreeJSScale(scale) {
     if (!phoneModel) return;
 
     phoneModel.scale.setScalar(baseModelScale * (scale / 100));
@@ -729,8 +751,14 @@ function renderThreeJSToCanvas(targetCanvas, width, height) {
     threeScene.background = null;
     threeRenderer.setClearColor(0x000000, 0); // Fully transparent clear color
 
-    // Temporarily resize renderer
+    // Store original size and pixel ratio
     const oldSize = { width: 400, height: 700 };
+    const oldPixelRatio = threeRenderer.getPixelRatio();
+
+    // Temporarily resize renderer with high quality settings for export
+    // Use device pixel ratio for crisp rendering, capped at 2 for performance
+    const exportPixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    threeRenderer.setPixelRatio(exportPixelRatio);
     threeRenderer.setSize(dims.width, dims.height);
     threeCamera.aspect = dims.width / dims.height;
     threeCamera.updateProjectionMatrix();
@@ -745,7 +773,8 @@ function renderThreeJSToCanvas(targetCanvas, width, height) {
     const ctx = targetCanvas.getContext('2d');
     ctx.drawImage(threeRenderer.domElement, 0, 0, dims.width, dims.height);
 
-    // Restore size, background, and model transforms
+    // Restore size, background, pixel ratio, and model transforms
+    threeRenderer.setPixelRatio(oldPixelRatio);
     threeRenderer.setSize(oldSize.width, oldSize.height);
     threeCamera.aspect = oldSize.width / oldSize.height;
     threeCamera.updateProjectionMatrix();
@@ -855,8 +884,16 @@ function renderThreeJSForScreenshot(targetCanvas, width, height, screenshotIndex
     threeScene.background = null;
     threeRenderer.setClearColor(0x000000, 0); // Fully transparent clear color
 
-    // Temporarily resize renderer
+    // Store original size and pixel ratio
     const oldSize = { width: 400, height: 700 };
+    const oldPixelRatio = threeRenderer.getPixelRatio();
+
+    // Use higher pixel ratio for quality rendering when exporting at larger sizes
+    const isExportSize = dims.width > 500 || dims.height > 800;
+    if (isExportSize) {
+        const exportPixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        threeRenderer.setPixelRatio(exportPixelRatio);
+    }
     threeRenderer.setSize(dims.width, dims.height);
     threeCamera.aspect = dims.width / dims.height;
     threeCamera.updateProjectionMatrix();
@@ -872,6 +909,7 @@ function renderThreeJSForScreenshot(targetCanvas, width, height, screenshotIndex
     ctx.drawImage(threeRenderer.domElement, 0, 0, dims.width, dims.height);
 
     // Restore everything
+    threeRenderer.setPixelRatio(oldPixelRatio);
     threeRenderer.setSize(oldSize.width, oldSize.height);
     threeCamera.aspect = oldSize.width / oldSize.height;
     threeCamera.updateProjectionMatrix();
@@ -930,7 +968,7 @@ function showThreeJS(show) {
 }
 
 // Get Three.js canvas for export
-function getThreeJSCanvas() {
+function _getThreeJSCanvas() {
     return threeRenderer ? threeRenderer.domElement : null;
 }
 
@@ -1115,3 +1153,19 @@ if (document.readyState === 'loading') {
 } else {
     setup3DCanvasInteraction();
 }
+
+// Export functions and variables for testing
+window.initThreeJS = initThreeJS;
+window.showThreeJS = showThreeJS;
+window.updateScreenTexture = updateScreenTexture;
+window.switchPhoneModel = switchPhoneModel;
+window.renderThreeJSToCanvas = renderThreeJSToCanvas;
+window.disposeThreeJS = disposeThreeJS;
+window.cleanMaterial = cleanMaterial;
+window.disposeHierarchy = disposeHierarchy;
+window.deviceConfigs = deviceConfigs;
+window.phoneModelLoaded = phoneModelLoaded;
+window.phoneModelLoading = phoneModelLoading;
+window.phoneModelCache = phoneModelCache;
+window.setThreeJSRotation = setThreeJSRotation;
+window.renderThreeJSForScreenshot = renderThreeJSForScreenshot;

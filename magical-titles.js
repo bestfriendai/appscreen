@@ -16,7 +16,7 @@ function showMagicalTitlesTooltip() {
     // Don't show if no API key is configured
     const provider = getSelectedProvider();
     const providerConfig = llmProviders[provider];
-    const apiKey = localStorage.getItem(providerConfig.storageKey);
+    const apiKey = localStorage.getItem(providerConfig.storageKey) || window.ENV?.GOOGLE_API_KEY;
     if (!apiKey) return;
 
     magicalTitlesTooltipShown = true;
@@ -251,7 +251,7 @@ function showMagicalTitlesDialog() {
     // Get provider and API key
     const provider = getSelectedProvider();
     const providerConfig = llmProviders[provider];
-    const apiKey = localStorage.getItem(providerConfig.storageKey);
+    const apiKey = localStorage.getItem(providerConfig.storageKey) || window.ENV?.GOOGLE_API_KEY;
 
     if (!apiKey) {
         showAppAlert('Please configure your AI API key in Settings first.', 'error');
@@ -290,7 +290,7 @@ async function generateMagicalTitles() {
     // Get provider and API key
     const provider = getSelectedProvider();
     const providerConfig = llmProviders[provider];
-    const apiKey = localStorage.getItem(providerConfig.storageKey);
+    const apiKey = localStorage.getItem(providerConfig.storageKey) || window.ENV?.GOOGLE_API_KEY;
 
     // Get selected language from dropdown
     const langSelect = document.getElementById('magical-titles-language');
@@ -455,3 +455,8 @@ Write all titles in ${langName}.`;
         }
     }
 }
+// Expose global functions
+window.showMagicalTitlesTooltip = showMagicalTitlesTooltip;
+window.showMagicalTitlesDialog = showMagicalTitlesDialog;
+window.hideMagicalTitlesDialog = hideMagicalTitlesDialog;
+window.generateMagicalTitles = generateMagicalTitles;

@@ -4,6 +4,27 @@
 // Current screenshot index for translations modal
 let currentTranslationsIndex = null;
 
+// Language flags mapping (also defined in app.js, this serves as fallback for testing)
+// Use existing definition if available (from app.js when loaded in correct order)
+const languageFlags = typeof window !== 'undefined' && window.languageFlags ? window.languageFlags : {
+    'en': '🇺🇸', 'en-gb': '🇬🇧', 'de': '🇩🇪', 'fr': '🇫🇷', 'es': '🇪🇸',
+    'it': '🇮🇹', 'pt': '🇵🇹', 'pt-br': '🇧🇷', 'nl': '🇳🇱', 'ru': '🇷🇺',
+    'ja': '🇯🇵', 'ko': '🇰🇷', 'zh': '🇨🇳', 'zh-tw': '🇹🇼', 'ar': '🇸🇦',
+    'hi': '🇮🇳', 'tr': '🇹🇷', 'pl': '🇵🇱', 'sv': '🇸🇪', 'da': '🇩🇰',
+    'no': '🇳🇴', 'fi': '🇫🇮', 'th': '🇹🇭', 'vi': '🇻🇳', 'id': '🇮🇩'
+};
+
+// Language names mapping (also defined in app.js, this serves as fallback for testing)
+const languageNames = typeof window !== 'undefined' && window.languageNames ? window.languageNames : {
+    'en': 'English (US)', 'en-gb': 'English (UK)', 'de': 'German', 'fr': 'French',
+    'es': 'Spanish', 'it': 'Italian', 'pt': 'Portuguese', 'pt-br': 'Portuguese (BR)',
+    'nl': 'Dutch', 'ru': 'Russian', 'ja': 'Japanese', 'ko': 'Korean',
+    'zh': 'Chinese (Simplified)', 'zh-tw': 'Chinese (Traditional)', 'ar': 'Arabic',
+    'hi': 'Hindi', 'tr': 'Turkish', 'pl': 'Polish', 'sv': 'Swedish',
+    'da': 'Danish', 'no': 'Norwegian', 'fi': 'Finnish', 'th': 'Thai',
+    'vi': 'Vietnamese', 'id': 'Indonesian'
+};
+
 /**
  * Extract the base filename without language suffix
  * e.g., "screenshot_de.png" -> "screenshot", "image-fr.png" -> "image"
@@ -11,6 +32,11 @@ let currentTranslationsIndex = null;
  * @returns {string} - Base filename without language suffix and extension
  */
 function getBaseFilename(filename) {
+    // Handle null/undefined/empty string
+    if (!filename || typeof filename !== 'string') {
+        return '';
+    }
+
     // Remove extension
     const withoutExt = filename.replace(/\.[^.]+$/, '');
 
@@ -40,8 +66,12 @@ function getBaseFilename(filename) {
 function findScreenshotByBaseFilename(filename) {
     const baseName = getBaseFilename(filename);
 
-    for (let i = 0; i < state.screenshots.length; i++) {
-        const screenshot = state.screenshots[i];
+    // Get state from window if available (defined in app.js)
+    const appState = typeof state !== 'undefined' ? state : (typeof window !== 'undefined' ? window.state : null);
+    const screenshots = appState?.screenshots || [];
+
+    for (let i = 0; i < screenshots.length; i++) {
+        const screenshot = screenshots[i];
         if (!screenshot.localizedImages) continue;
 
         // Check each localized image's filename
@@ -63,6 +93,11 @@ function findScreenshotByBaseFilename(filename) {
  * @returns {string} - Language code (e.g., 'de', 'fr', 'pt-br') or 'en' as fallback
  */
 function detectLanguageFromFilename(filename) {
+    // Handle null/undefined/empty string
+    if (!filename || typeof filename !== 'string') {
+        return 'en';
+    }
+
     // All supported language codes from languageFlags (defined in app.js)
     const supportedLangs = Object.keys(languageFlags);
 
@@ -94,7 +129,10 @@ function detectLanguageFromFilename(filename) {
 function getScreenshotImage(screenshot) {
     if (!screenshot) return null;
 
-    const lang = state.currentLanguage;
+    // Get state from window if available (defined in app.js)
+    const appState = typeof state !== 'undefined' ? state : (typeof window !== 'undefined' ? window.state : null);
+    const lang = appState?.currentLanguage || 'en';
+    const projectLangs = appState?.projectLanguages || ['en'];
 
     // Try current language first
     if (screenshot.localizedImages?.[lang]?.image) {
@@ -102,7 +140,7 @@ function getScreenshotImage(screenshot) {
     }
 
     // Fallback to first available language in project order
-    for (const l of state.projectLanguages) {
+    for (const l of projectLangs) {
         if (screenshot.localizedImages?.[l]?.image) {
             return screenshot.localizedImages[l].image;
         }
@@ -141,9 +179,14 @@ function getAvailableLanguagesForScreenshot(screenshot) {
  */
 function isScreenshotComplete(screenshot) {
     if (!screenshot?.localizedImages) return false;
-    if (state.projectLanguages.length === 0) return true;
 
-    return state.projectLanguages.every(
+    // Get state from window if available (defined in app.js)
+    const appState = typeof state !== 'undefined' ? state : (typeof window !== 'undefined' ? window.state : null);
+    const projectLangs = appState?.projectLanguages || ['en'];
+
+    if (projectLangs.length === 0) return true;
+
+    return projectLangs.every(
         lang => screenshot.localizedImages[lang]?.image
     );
 }
@@ -154,7 +197,7 @@ function isScreenshotComplete(screenshot) {
  * @param {Object} screenshot - The screenshot object to migrate
  * @param {string} detectedLang - Optional detected language from filename
  */
-function migrateScreenshotToLocalized(screenshot, detectedLang = 'en') {
+function _migrateScreenshotToLocalized(screenshot, detectedLang = 'en') {
     if (!screenshot) return;
 
     // Already migrated
@@ -240,7 +283,7 @@ function removeLocalizedImage(screenshotIndex, lang) {
  * Open the screenshot translations modal for a specific screenshot
  * @param {number} index - Index of the screenshot to manage
  */
-function openScreenshotTranslationsModal(index) {
+function _openScreenshotTranslationsModal(index) {
     currentTranslationsIndex = index;
     const modal = document.getElementById('screenshot-translations-modal');
     if (!modal) return;
@@ -252,7 +295,7 @@ function openScreenshotTranslationsModal(index) {
 /**
  * Close the screenshot translations modal
  */
-function closeScreenshotTranslationsModal() {
+function _closeScreenshotTranslationsModal() {
     currentTranslationsIndex = null;
     const modal = document.getElementById('screenshot-translations-modal');
     if (modal) {
@@ -359,7 +402,7 @@ function uploadScreenshotForLanguage(lang) {
  * Handle file selection for translation upload
  * @param {Event} event - The change event from file input
  */
-function handleTranslationFileSelect(event) {
+function _handleTranslationFileSelect(event) {
     const input = event.target;
     const lang = input.dataset.targetLang;
     const file = input.files?.[0];
@@ -396,7 +439,7 @@ function handleTranslationFileSelect(event) {
  * Show export language choice dialog
  * @param {Function} callback - Function to call with choice ('current' or 'all')
  */
-function showExportLanguageDialog(callback) {
+function _showExportLanguageDialog(callback) {
     const modal = document.getElementById('export-language-modal');
     if (!modal) {
         // Fallback if modal doesn't exist
@@ -422,7 +465,7 @@ function showExportLanguageDialog(callback) {
  * Close export language dialog and execute callback
  * @param {string} choice - 'current' or 'all'
  */
-function closeExportLanguageDialog(choice) {
+function _closeExportLanguageDialog(choice) {
     const modal = document.getElementById('export-language-modal');
     if (modal) {
         modal.classList.remove('visible');
@@ -439,7 +482,7 @@ function closeExportLanguageDialog(choice) {
 // ==========================================
 
 // Queue for pending duplicate resolution
-let duplicateQueue = [];
+let _duplicateQueue = [];
 let currentDuplicateResolve = null;
 
 /**
@@ -452,7 +495,7 @@ let currentDuplicateResolve = null;
  * @param {string} params.newName - Filename of new file
  * @returns {Promise<string>} - User choice: 'replace', 'create', or 'ignore'
  */
-function showDuplicateDialog(params) {
+function _showDuplicateDialog(params) {
     return new Promise((resolve) => {
         currentDuplicateResolve = resolve;
 
@@ -548,7 +591,7 @@ function closeDuplicateDialog(choice) {
 /**
  * Initialize duplicate dialog event listeners
  */
-function initDuplicateDialogListeners() {
+function _initDuplicateDialogListeners() {
     const replaceBtn = document.getElementById('duplicate-replace');
     const createBtn = document.getElementById('duplicate-create-new');
     const ignoreBtn = document.getElementById('duplicate-ignore');
@@ -563,3 +606,23 @@ function initDuplicateDialogListeners() {
         ignoreBtn.addEventListener('click', () => closeDuplicateDialog('ignore'));
     }
 }
+
+// Export functions for testing and cross-file access
+window.detectLanguageFromFilename = detectLanguageFromFilename;
+window.getBaseFilename = getBaseFilename;
+window.getScreenshotImage = getScreenshotImage;
+window.getAvailableLanguagesForScreenshot = getAvailableLanguagesForScreenshot;
+window.isScreenshotComplete = isScreenshotComplete;
+window.findScreenshotByBaseFilename = findScreenshotByBaseFilename;
+window.addLocalizedImage = addLocalizedImage;
+window.languageFlags = languageFlags;
+window.languageNames = languageNames;
+window.closeScreenshotTranslationsModal = _closeScreenshotTranslationsModal;
+window.openScreenshotTranslationsModal = _openScreenshotTranslationsModal;
+window.updateScreenshotTranslationsList = updateScreenshotTranslationsList;
+window.handleTranslationFileSelect = _handleTranslationFileSelect;
+window.showExportLanguageDialog = _showExportLanguageDialog;
+window.closeExportLanguageDialog = _closeExportLanguageDialog;
+window.showDuplicateDialog = _showDuplicateDialog;
+window.migrateScreenshotToLocalized = _migrateScreenshotToLocalized;
+window.initDuplicateDialogListeners = _initDuplicateDialogListeners;

@@ -38,36 +38,57 @@
     });
 
     test('detectLanguageFromFilename detects _en suffix', () => {
+        if (typeof window.detectLanguageFromFilename !== 'function') {
+            throw new Error('detectLanguageFromFilename not available');
+        }
         const result = window.detectLanguageFromFilename('screenshot_en.png');
         assertEqual(result, 'en', 'Should detect English');
     });
 
     test('detectLanguageFromFilename detects _de suffix', () => {
+        if (typeof window.detectLanguageFromFilename !== 'function') {
+            throw new Error('detectLanguageFromFilename not available');
+        }
         const result = window.detectLanguageFromFilename('screenshot_de.png');
         assertEqual(result, 'de', 'Should detect German');
     });
 
     test('detectLanguageFromFilename detects -fr suffix', () => {
+        if (typeof window.detectLanguageFromFilename !== 'function') {
+            throw new Error('detectLanguageFromFilename not available');
+        }
         const result = window.detectLanguageFromFilename('screenshot-fr.png');
         assertEqual(result, 'fr', 'Should detect French');
     });
 
     test('detectLanguageFromFilename detects _pt-br suffix', () => {
+        if (typeof window.detectLanguageFromFilename !== 'function') {
+            throw new Error('detectLanguageFromFilename not available');
+        }
         const result = window.detectLanguageFromFilename('screenshot_pt-br.png');
         assertEqual(result, 'pt-br', 'Should detect Brazilian Portuguese');
     });
 
     test('detectLanguageFromFilename returns en for no suffix', () => {
+        if (typeof window.detectLanguageFromFilename !== 'function') {
+            throw new Error('detectLanguageFromFilename not available');
+        }
         const result = window.detectLanguageFromFilename('screenshot.png');
         assertEqual(result, 'en', 'Should default to English');
     });
 
     test('detectLanguageFromFilename handles null', () => {
+        if (typeof window.detectLanguageFromFilename !== 'function') {
+            throw new Error('detectLanguageFromFilename not available');
+        }
         const result = window.detectLanguageFromFilename(null);
         assertEqual(result, 'en', 'Should default to English for null');
     });
 
     test('detectLanguageFromFilename handles empty string', () => {
+        if (typeof window.detectLanguageFromFilename !== 'function') {
+            throw new Error('detectLanguageFromFilename not available');
+        }
         const result = window.detectLanguageFromFilename('');
         assertEqual(result, 'en', 'Should default to English for empty');
     });
@@ -80,16 +101,25 @@
     });
 
     test('getBaseFilename strips language suffix', () => {
+        if (typeof window.getBaseFilename !== 'function') {
+            throw new Error('getBaseFilename not available');
+        }
         const result = window.getBaseFilename('screenshot_en.png');
         assertEqual(result, 'screenshot', 'Should strip _en suffix');
     });
 
     test('getBaseFilename strips extension', () => {
+        if (typeof window.getBaseFilename !== 'function') {
+            throw new Error('getBaseFilename not available');
+        }
         const result = window.getBaseFilename('screenshot.png');
         assertEqual(result, 'screenshot', 'Should strip extension');
     });
 
     test('getBaseFilename handles multiple dots', () => {
+        if (typeof window.getBaseFilename !== 'function') {
+            throw new Error('getBaseFilename not available');
+        }
         const result = window.getBaseFilename('my.screenshot.file_de.png');
         assertEqual(result, 'my.screenshot.file', 'Should handle multiple dots');
     });
@@ -102,11 +132,21 @@
     });
 
     test('getScreenshotImage handles null screenshot', () => {
+        if (typeof window.getScreenshotImage !== 'function') {
+            throw new Error('getScreenshotImage not available');
+        }
         const result = window.getScreenshotImage(null);
         assertEqual(result, null, 'Should return null for null screenshot');
     });
 
     test('getScreenshotImage returns localized image when available', () => {
+        if (typeof window.getScreenshotImage !== 'function') {
+            throw new Error('getScreenshotImage not available');
+        }
+        if (!window.state) {
+            throw new Error('state not available');
+        }
+
         const mockScreenshot = {
             localizedImages: {
                 en: { image: { src: 'test_en.png' } },
@@ -127,6 +167,10 @@
     });
 
     test('getScreenshotImage falls back to legacy image', () => {
+        if (typeof window.getScreenshotImage !== 'function') {
+            throw new Error('getScreenshotImage not available');
+        }
+
         const mockScreenshot = {
             image: { src: 'legacy.png' }
         };
@@ -144,6 +188,10 @@
     });
 
     test('getAvailableLanguagesForScreenshot returns array', () => {
+        if (typeof window.getAvailableLanguagesForScreenshot !== 'function') {
+            throw new Error('getAvailableLanguagesForScreenshot not available');
+        }
+
         const mockScreenshot = {
             localizedImages: {
                 en: { image: {} },
@@ -156,6 +204,10 @@
     });
 
     test('getAvailableLanguagesForScreenshot detects all languages', () => {
+        if (typeof window.getAvailableLanguagesForScreenshot !== 'function') {
+            throw new Error('getAvailableLanguagesForScreenshot not available');
+        }
+
         const mockScreenshot = {
             localizedImages: {
                 en: { image: {} },
@@ -179,6 +231,13 @@
     });
 
     test('isScreenshotComplete returns true when all languages have images', () => {
+        if (typeof window.isScreenshotComplete !== 'function') {
+            throw new Error('isScreenshotComplete not available');
+        }
+        if (!window.state) {
+            throw new Error('state not available');
+        }
+
         const originalLangs = window.state.projectLanguages;
         window.state.projectLanguages = ['en', 'de'];
 
@@ -196,6 +255,13 @@
     });
 
     test('isScreenshotComplete returns false when languages missing', () => {
+        if (typeof window.isScreenshotComplete !== 'function') {
+            throw new Error('isScreenshotComplete not available');
+        }
+        if (!window.state) {
+            throw new Error('state not available');
+        }
+
         const originalLangs = window.state.projectLanguages;
         window.state.projectLanguages = ['en', 'de', 'fr'];
 
@@ -220,6 +286,13 @@
     });
 
     test('findScreenshotByBaseFilename finds matching screenshot', () => {
+        if (typeof window.findScreenshotByBaseFilename !== 'function') {
+            throw new Error('findScreenshotByBaseFilename not available');
+        }
+        if (!window.state) {
+            throw new Error('state not available');
+        }
+
         const originalScreenshots = window.state.screenshots;
 
         window.state.screenshots = [
@@ -234,6 +307,13 @@
     });
 
     test('findScreenshotByBaseFilename returns -1 for no match', () => {
+        if (typeof window.findScreenshotByBaseFilename !== 'function') {
+            throw new Error('findScreenshotByBaseFilename not available');
+        }
+        if (!window.state) {
+            throw new Error('state not available');
+        }
+
         const originalScreenshots = window.state.screenshots;
         window.state.screenshots = [];
 
@@ -255,12 +335,14 @@
     });
 
     test('languageFlags has common languages', () => {
+        assertTruthy(window.languageFlags, 'languageFlags should exist');
         assertTruthy(window.languageFlags.en, 'Should have English flag');
         assertTruthy(window.languageFlags.de, 'Should have German flag');
         assertTruthy(window.languageFlags.fr, 'Should have French flag');
     });
 
     test('languageNames has common languages', () => {
+        assertTruthy(window.languageNames, 'languageNames should exist');
         assertTruthy(window.languageNames.en, 'Should have English name');
         assertTruthy(window.languageNames.de, 'Should have German name');
         assertTruthy(window.languageNames.fr, 'Should have French name');

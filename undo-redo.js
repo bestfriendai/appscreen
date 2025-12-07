@@ -3,12 +3,12 @@
  * Tracks state changes and allows reverting actions
  */
 
-const UndoRedo = (function() {
+const UndoRedo = (function () {
     const MAX_HISTORY = 50;
     let undoStack = [];
     let redoStack = [];
     let isUndoingOrRedoing = false;
-    let lastSavedState = null;
+    let _lastSavedState = null;
 
     /**
      * Deep clone an object
@@ -235,7 +235,8 @@ const UndoRedo = (function() {
         initialize,
         getHistoryInfo,
         setupKeyboardShortcuts,
-        updateUI
+        updateUI,
+        MAX_HISTORY
     };
 })();
 

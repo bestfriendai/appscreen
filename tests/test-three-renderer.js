@@ -38,6 +38,7 @@
     });
 
     test('THREE has required components', () => {
+        assertTruthy(window.THREE, 'THREE should be defined');
         assertTruthy(window.THREE.Scene, 'THREE.Scene should exist');
         assertTruthy(window.THREE.PerspectiveCamera, 'THREE.PerspectiveCamera should exist');
         assertTruthy(window.THREE.WebGLRenderer, 'THREE.WebGLRenderer should exist');
@@ -89,19 +90,22 @@
     });
 
     test('deviceConfigs has iPhone configuration', () => {
-        assertTruthy(window.deviceConfigs && window.deviceConfigs.iPhone, 'iPhone config should exist');
+        assertTruthy(window.deviceConfigs, 'deviceConfigs should exist');
+        assertTruthy(window.deviceConfigs.iPhone, 'iPhone config should exist');
     });
 
     test('deviceConfigs has iPad configuration', () => {
-        assertTruthy(window.deviceConfigs && window.deviceConfigs.iPad, 'iPad config should exist');
+        assertTruthy(window.deviceConfigs, 'deviceConfigs should exist');
+        assertTruthy(window.deviceConfigs.iPad, 'iPad config should exist');
     });
 
     test('Device configs have required properties', () => {
-        if (window.deviceConfigs && window.deviceConfigs.iPhone) {
-            const config = window.deviceConfigs.iPhone;
-            assertTruthy(config.modelPath, 'Should have modelPath');
-            assertTruthy(typeof config.scale === 'number', 'Should have scale');
+        if (!window.deviceConfigs || !window.deviceConfigs.iPhone) {
+            throw new Error('deviceConfigs.iPhone not available');
         }
+        const config = window.deviceConfigs.iPhone;
+        assertTruthy(config.modelPath, 'Should have modelPath');
+        assertTruthy(typeof config.scale === 'number', 'Should have scale');
     });
 
     // ========================================
@@ -160,10 +164,11 @@
     // ========================================
     // Test: 3D canvas exists
     // ========================================
-    test('3D preview canvas exists', () => {
+    test('3D preview canvas check', () => {
+        // Canvas might not exist if 3D mode is disabled
         const canvas = document.getElementById('three-preview') ||
                        document.querySelector('.three-preview-canvas');
-        // Canvas might not exist if 3D mode is disabled
+        // Pass regardless - canvas existence is optional in test context
         assertTruthy(true, '3D canvas check completed');
     });
 
@@ -184,6 +189,7 @@
         } catch (e) {
             // May throw if 3D not initialized, that's ok
             console.warn('setThreeJSRotation test skipped - 3D not initialized');
+            assertTruthy(true, 'Skipped - 3D not initialized');
         }
     });
 
@@ -200,7 +206,8 @@
     test('GLTFLoader is available', () => {
         assertTruthy(
             window.THREE.GLTFLoader ||
-            (window.THREE.loaders && window.THREE.loaders.GLTFLoader),
+            (window.THREE.loaders && window.THREE.loaders.GLTFLoader) ||
+            typeof window.GLTFLoader !== 'undefined',
             'GLTFLoader should be available'
         );
     });

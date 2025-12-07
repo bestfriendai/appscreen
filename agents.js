@@ -63,8 +63,8 @@ const GENERATION_STAGES = [
  * Make API call to Gemini
  */
 async function callAI(prompt, options = {}) {
-    // Use the configured Gemini 3 API key
-    const apiKey = localStorage.getItem('googleApiKey') || 'AIzaSyBFVCWZnc6wKlOeoCwBf_lbWiVKuyRurx0';
+    // Use the configured Gemini 3 API key (localStorage > .env.local)
+    const apiKey = localStorage.getItem('googleApiKey') || window.ENV?.GOOGLE_API_KEY;
     // Use getSelectedModel() for validated model selection - Gemini 3 only
     const model = typeof getSelectedModel === 'function'
         ? getSelectedModel()
@@ -291,8 +291,8 @@ async function getScreenshotBase64(screenshot) {
         console.log('[getScreenshotBase64] Available langs:', Object.keys(screenshot.localizedImages));
 
         const localizedData = screenshot.localizedImages[lang] ||
-                              screenshot.localizedImages['en'] ||
-                              Object.values(screenshot.localizedImages)[0];
+            screenshot.localizedImages['en'] ||
+            Object.values(screenshot.localizedImages)[0];
         if (localizedData?.src && localizedData.src.startsWith('data:')) {
             console.log('[getScreenshotBase64] Found dataUrl in localizedImages, length:', localizedData.src.length);
             return localizedData.src;
@@ -481,10 +481,10 @@ async function runMagicDesign(appName, appDescription, screenshots, onProgress, 
     console.log('API Key present:', !!localStorage.getItem('googleApiKey') || !!localStorage.getItem('claudeApiKey') || !!localStorage.getItem('openaiApiKey'));
 
     const stages = [...GENERATION_STAGES];
-    let currentStage = 0;
+    let _currentStage = 0;
 
     const updateStage = (index) => {
-        currentStage = index;
+        _currentStage = index;
         console.log(`>>> Stage ${index + 1}/${stages.length}: ${stages[index]?.name}`);
         onStageChange?.(stages[index], index, stages.length);
     };
@@ -670,3 +670,6 @@ window.AIAgents = {
     runMagicDesign,
     applyDesignPlan
 };
+
+// Export API timeout constant for testing
+window.API_TIMEOUT_MS = API_TIMEOUT_MS;

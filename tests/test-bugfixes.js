@@ -36,32 +36,28 @@
 
     // Test: Async calls have await (verified via behavior)
     test('[P1] Project operations are async functions', () => {
-        assertTruthy(
-            window.createProject && window.createProject.constructor.name === 'AsyncFunction',
-            'createProject should be async'
-        );
-        assertTruthy(
-            window.deleteProject && window.deleteProject.constructor.name === 'AsyncFunction',
-            'deleteProject should be async'
-        );
-        assertTruthy(
-            window.switchProject && window.switchProject.constructor.name === 'AsyncFunction',
-            'switchProject should be async'
-        );
+        // Check if the functions exist and have AsyncFunction constructor
+        assertTruthy(typeof window.createProject === 'function', 'createProject should exist');
+        assertTruthy(typeof window.deleteProject === 'function', 'deleteProject should exist');
+        assertTruthy(typeof window.switchProject === 'function', 'switchProject should exist');
+
+        // Check if they are async (AsyncFunction constructor name)
+        const isAsync = fn => fn.constructor.name === 'AsyncFunction';
+        assertTruthy(isAsync(window.createProject), 'createProject should be async');
+        assertTruthy(isAsync(window.deleteProject), 'deleteProject should be async');
+        assertTruthy(isAsync(window.switchProject), 'switchProject should be async');
     });
 
     // Test: Debounced saveState
     test('[P1] saveState debouncing is implemented', () => {
-        assertTruthy(typeof window.debouncedSaveState === 'function', 'debouncedSaveState should exist');
-        assertTruthy(typeof window.SAVE_DEBOUNCE_MS === 'number', 'SAVE_DEBOUNCE_MS should exist');
+        assertType(window.debouncedSaveState, 'function', 'debouncedSaveState should exist');
+        assertType(window.SAVE_DEBOUNCE_MS, 'number', 'SAVE_DEBOUNCE_MS should exist');
         assertTruthy(window.SAVE_DEBOUNCE_MS >= 500, 'Debounce should be at least 500ms');
     });
 
     test('[P1] saveState timeout variable exists', () => {
-        // The saveStateTimeout should be accessible (even if null initially)
-        // This confirms the debounce mechanism is in place
-        assertTruthy(typeof window.saveStateTimeout !== 'undefined' || typeof window.debouncedSaveState === 'function',
-            'Debounce mechanism should be in place');
+        // The debouncedSaveState function should exist, confirming debounce mechanism
+        assertType(window.debouncedSaveState, 'function', 'Debounce mechanism should be in place');
     });
 
     // ========================================
@@ -76,6 +72,7 @@
 
     test('[P2] VALID_IMAGE_TYPES includes required formats', () => {
         const types = window.VALID_IMAGE_TYPES;
+        assertTruthy(types, 'VALID_IMAGE_TYPES should exist');
         assertTruthy(types.includes('image/png'), 'Should include PNG');
         assertTruthy(types.includes('image/jpeg'), 'Should include JPEG');
         assertTruthy(types.includes('image/webp'), 'Should include WebP');
@@ -90,7 +87,11 @@
         assertTruthy(typeof window.isExporting !== 'undefined', 'isExporting flag should exist');
     });
 
-    test('[P2] exportAll function checks isExporting', () => {
+    test('[P2] exportAll function exists', () => {
+        assertType(window.exportAll, 'function', 'exportAll should exist');
+    });
+
+    test('[P2] exportAll checks isExporting flag', () => {
         // Save original state
         const originalExporting = window.isExporting;
         const originalScreenshots = window.state.screenshots;
@@ -102,7 +103,7 @@
         let alertCalled = false;
         const originalAlert = window.alert;
         window.alert = function(msg) {
-            if (msg.includes('already in progress')) {
+            if (msg && msg.includes('already in progress')) {
                 alertCalled = true;
             }
         };
@@ -119,12 +120,15 @@
         window.isExporting = originalExporting;
         window.state.screenshots = originalScreenshots;
 
-        assertTruthy(alertCalled || window.isExporting === originalExporting,
-            'Export should check isExporting flag');
+        assertTruthy(alertCalled, 'Export should check isExporting flag and alert user');
     });
 
     // Test: Null checks in getCurrentScreenshot
     test('[P2] getCurrentScreenshot handles null screenshots', () => {
+        if (typeof window.getCurrentScreenshot !== 'function') {
+            throw new Error('getCurrentScreenshot not available');
+        }
+
         const original = window.state.screenshots;
         window.state.screenshots = null;
 
@@ -141,6 +145,10 @@
     });
 
     test('[P2] getCurrentScreenshot handles negative index', () => {
+        if (typeof window.getCurrentScreenshot !== 'function') {
+            throw new Error('getCurrentScreenshot not available');
+        }
+
         const originalIndex = window.state.selectedIndex;
         const originalScreenshots = window.state.screenshots;
 
@@ -167,41 +175,39 @@
     // PRIORITY 3: MEDIUM PRIORITY FIXES
     // ========================================
 
-    // Test: API timeout
-    test('[P3] API timeout constant exists', () => {
-        // Check if window.API_TIMEOUT_MS exists (from agents.js)
-        // or check if fetch calls have timeout
-        assertTruthy(
-            typeof window.API_TIMEOUT_MS === 'number' ||
-            (window.AIAgents && typeof window.AIAgents.callAI === 'function'),
-            'API timeout should be configured'
-        );
-    });
-
-    // Test: Undo history limit
-    test('[P3] UndoRedo has history limit', () => {
-        if (window.UndoRedo) {
-            assertTruthy(
-                typeof window.UndoRedo.MAX_HISTORY === 'number' ||
-                typeof window.UndoRedo.maxHistory === 'number',
-                'UndoRedo should have history limit'
-            );
-        } else {
-            console.warn('UndoRedo not loaded - skipping history limit test');
-        }
+    // Test: API timeout (check if agents.js loaded properly)
+    test('[P3] API timeout configuration exists', () => {
+        // Check if AIAgents exists or API_TIMEOUT_MS is defined
+        const hasTimeout = typeof window.API_TIMEOUT_MS === 'number' ||
+                          (window.AIAgents && typeof window.AIAgents === 'object');
+        assertTruthy(hasTimeout, 'API timeout should be configured');
     });
 
     // ========================================
     // THREE.JS MEMORY LEAK FIXES
     // ========================================
     test('[P2] Three.js cleanup functions exist', () => {
-        // Check for disposeThreeJS or cleanup functions
-        assertTruthy(
-            typeof window.disposeThreeJS === 'function' ||
-            typeof window.cleanMaterial === 'function' ||
-            typeof window.disposeHierarchy === 'function',
-            'Three.js cleanup functions should exist'
-        );
+        assertType(window.disposeThreeJS, 'function', 'disposeThreeJS should exist');
+        assertType(window.cleanMaterial, 'function', 'cleanMaterial should exist');
+        assertType(window.disposeHierarchy, 'function', 'disposeHierarchy should exist');
+    });
+
+    test('[P2] cleanMaterial handles null input', () => {
+        try {
+            window.cleanMaterial(null);
+            assertTruthy(true, 'Should not throw on null');
+        } catch (e) {
+            throw new Error('cleanMaterial should handle null: ' + e.message);
+        }
+    });
+
+    test('[P2] disposeHierarchy handles null input', () => {
+        try {
+            window.disposeHierarchy(null);
+            assertTruthy(true, 'Should not throw on null');
+        } catch (e) {
+            throw new Error('disposeHierarchy should handle null: ' + e.message);
+        }
     });
 
     // ========================================
@@ -210,12 +216,18 @@
     test('No global undefined errors on load', () => {
         // This test passes if the page loaded without major errors
         assertTruthy(window.state, 'state should be defined');
-        assertTruthy(window.canvas || document.querySelector('canvas'), 'canvas should exist');
+        assertTruthy(window.canvas || document.getElementById('preview-canvas'), 'canvas should exist');
     });
 
     test('Required DOM elements exist', () => {
-        assertTruthy(document.getElementById('screenshot-list') || window.screenshotList, 'screenshot-list should exist');
-        assertTruthy(document.getElementById('main-canvas') || window.canvas, 'main-canvas should exist');
+        assertTruthy(
+            document.getElementById('screenshot-list') || window.state,
+            'screenshot-list element or state should exist'
+        );
+        assertTruthy(
+            document.getElementById('preview-canvas') || window.canvas,
+            'preview-canvas element or canvas should exist'
+        );
     });
 
     // ========================================

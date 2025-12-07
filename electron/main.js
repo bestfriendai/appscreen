@@ -214,7 +214,7 @@ function createWindow() {
     });
 
     // Load the index.html of the app
-    mainWindow.loadFile('index.html');
+    mainWindow.loadFile(path.join(__dirname, '../index.html'));
 
     // Show window when ready to prevent visual flash
     mainWindow.once('ready-to-show', () => {
@@ -480,10 +480,10 @@ ipcMain.handle('save-settings', async (event, settings) => {
             if (typeof str !== 'string') return '';
             // Escape backslashes, quotes, and newlines
             return str.replace(/\\/g, '\\\\')
-                      .replace(/'/g, "\\'")
-                      .replace(/"/g, '\\"')
-                      .replace(/\n/g, '\\n')
-                      .replace(/\r/g, '\\r');
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r');
         };
 
         const safeSettings = {

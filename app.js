@@ -65,6 +65,14 @@ const state = {
             headlineUnderline: false,
             headlineStrikethrough: false,
             headlineColor: '#ffffff',
+            headlineShadow: {
+                enabled: false,
+                color: '#000000',
+                blur: 10,
+                offsetX: 0,
+                offsetY: 4,
+                opacity: 50
+            },
             position: 'top',
             offsetY: 8,                            // RULE 2: 6-12% from top
             lineHeight: 95,                        // RULE 2: 0.90-0.98 tight
@@ -80,8 +88,21 @@ const state = {
             subheadlineUnderline: false,
             subheadlineStrikethrough: false,
             subheadlineColor: '#ffffff',
-            subheadlineOpacity: 75                 // RULE 3: 70-80% opacity
+            subheadlineOpacity: 75,                // RULE 3: 70-80% opacity
+            subheadlineShadow: {
+                enabled: false,
+                color: '#000000',
+                blur: 8,
+                offsetX: 0,
+                offsetY: 3,
+                opacity: 40
+            }
         }
+    },
+    // Export settings
+    export: {
+        format: 'png', // 'png', 'jpeg', 'webp'
+        quality: 92    // 1-100, only applies to jpeg/webp
     }
 };
 
@@ -165,14 +186,17 @@ function setCurrentScreenshotAsDefault() {
     }
 }
 
-// Language flags mapping
-const languageFlags = {
-    'en': '🇺🇸', 'en-gb': '🇬🇧', 'de': '🇩🇪', 'fr': '🇫🇷', 'es': '🇪🇸',
-    'it': '🇮🇹', 'pt': '🇵🇹', 'pt-br': '🇧🇷', 'nl': '🇳🇱', 'ru': '🇷🇺',
-    'ja': '🇯🇵', 'ko': '🇰🇷', 'zh': '🇨🇳', 'zh-tw': '🇹🇼', 'ar': '🇸🇦',
-    'hi': '🇮🇳', 'tr': '🇹🇷', 'pl': '🇵🇱', 'sv': '🇸🇪', 'da': '🇩🇰',
-    'no': '🇳🇴', 'fi': '🇫🇮', 'th': '🇹🇭', 'vi': '🇻🇳', 'id': '🇮🇩'
-};
+// Language flags mapping - defined in language-utils.js (loaded before this file)
+// Fallback definition if language-utils.js hasn't loaded yet
+if (typeof languageFlags === 'undefined') {
+    window.languageFlags = {
+        'en': '🇺🇸', 'en-gb': '🇬🇧', 'de': '🇩🇪', 'fr': '🇫🇷', 'es': '🇪🇸',
+        'it': '🇮🇹', 'pt': '🇵🇹', 'pt-br': '🇧🇷', 'nl': '🇳🇱', 'ru': '🇷🇺',
+        'ja': '🇯🇵', 'ko': '🇰🇷', 'zh': '🇨🇳', 'zh-tw': '🇹🇼', 'ar': '🇸🇦',
+        'hi': '🇮🇳', 'tr': '🇹🇷', 'pl': '🇵🇱', 'sv': '🇸🇪', 'da': '🇩🇰',
+        'no': '🇳🇴', 'fi': '🇫🇮', 'th': '🇹🇭', 'vi': '🇻🇳', 'id': '🇮🇩'
+    };
+}
 
 // Google Fonts configuration
 const googleFonts = {
@@ -648,7 +672,7 @@ async function renderFontList(pickerId, ids) {
                  data-font-category="${font.category}">
                 <span class="font-option-name" style="font-family: ${isLoaded ? font.value : 'inherit'}">${font.name}</span>
                 ${isLoading ? '<span class="font-option-loading">Loading...</span>' :
-                  `<span class="font-option-category">${font.category}</span>`}
+                `<span class="font-option-category">${font.category}</span>`}
             </div>
         `;
     }).join('');
@@ -758,15 +782,15 @@ const deviceDimensions = {
 
 // DOM elements
 const canvas = document.getElementById('preview-canvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas ? canvas.getContext('2d') : null;
 const canvasLeft = document.getElementById('preview-canvas-left');
-const ctxLeft = canvasLeft.getContext('2d');
+const ctxLeft = canvasLeft ? canvasLeft.getContext('2d') : null;
 const canvasRight = document.getElementById('preview-canvas-right');
-const ctxRight = canvasRight.getContext('2d');
+const ctxRight = canvasRight ? canvasRight.getContext('2d') : null;
 const canvasFarLeft = document.getElementById('preview-canvas-far-left');
-const ctxFarLeft = canvasFarLeft.getContext('2d');
+const ctxFarLeft = canvasFarLeft ? canvasFarLeft.getContext('2d') : null;
 const canvasFarRight = document.getElementById('preview-canvas-far-right');
-const ctxFarRight = canvasFarRight.getContext('2d');
+const ctxFarRight = canvasFarRight ? canvasFarRight.getContext('2d') : null;
 const sidePreviewLeft = document.getElementById('side-preview-left');
 const sidePreviewRight = document.getElementById('side-preview-right');
 const sidePreviewFarLeft = document.getElementById('side-preview-far-left');
@@ -782,42 +806,47 @@ let swipeAccumulator = 0;
 const SWIPE_THRESHOLD = 50; // Minimum accumulated delta to trigger navigation
 
 // Prevent browser back/forward gesture on the entire canvas area
-canvasWrapper.addEventListener('wheel', (e) => {
-    // Prevent horizontal scroll from triggering browser back/forward
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+if (canvasWrapper) {
+    canvasWrapper.addEventListener('wheel', (e) => {
+        // Prevent horizontal scroll from triggering browser back/forward
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+}
+
+if (previewStrip) {
+    previewStrip.addEventListener('wheel', (e) => {
+        // Only handle horizontal scrolling (two-finger swipe on trackpad)
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+
         e.preventDefault();
-    }
-}, { passive: false });
+        e.stopPropagation();
 
-previewStrip.addEventListener('wheel', (e) => {
-    // Only handle horizontal scrolling (two-finger swipe on trackpad)
-    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+        if (isSliding) return;
+        if (state.screenshots.length <= 1) return;
 
-    e.preventDefault();
-    e.stopPropagation();
+        swipeAccumulator += e.deltaX;
 
-    if (isSliding) return;
-    if (state.screenshots.length <= 1) return;
-
-    swipeAccumulator += e.deltaX;
-
-    if (swipeAccumulator > SWIPE_THRESHOLD) {
-        // Swipe left = go to next screenshot
-        const nextIndex = state.selectedIndex + 1;
-        if (nextIndex < state.screenshots.length) {
-            slideToScreenshot(nextIndex, 'right');
+        if (swipeAccumulator > SWIPE_THRESHOLD) {
+            // Swipe left = go to next screenshot
+            const nextIndex = state.selectedIndex + 1;
+            if (nextIndex < state.screenshots.length) {
+                slideToScreenshot(nextIndex, 'right');
+            }
+            swipeAccumulator = 0;
+        } else if (swipeAccumulator < -SWIPE_THRESHOLD) {
+            // Swipe right = go to previous screenshot
+            const prevIndex = state.selectedIndex - 1;
+            if (prevIndex >= 0) {
+                slideToScreenshot(prevIndex, 'left');
+            }
+            swipeAccumulator = 0;
         }
-        swipeAccumulator = 0;
-    } else if (swipeAccumulator < -SWIPE_THRESHOLD) {
-        // Swipe right = go to previous screenshot
-        const prevIndex = state.selectedIndex - 1;
-        if (prevIndex >= 0) {
-            slideToScreenshot(prevIndex, 'left');
-        }
-        swipeAccumulator = 0;
-    }
-}, { passive: false });
-let suppressSwitchModelUpdate = false;  // Flag to suppress updateCanvas from switchPhoneModel
+    }, { passive: false });
+}
+
+
 const fileInput = document.getElementById('file-input');
 const screenshotList = document.getElementById('screenshot-list');
 const noScreenshot = document.getElementById('no-screenshot');
@@ -833,40 +862,40 @@ let currentProjectId = 'default';
 let projects = [{ id: 'default', name: 'Default Project', screenshotCount: 0 }];
 
 function openDatabase() {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
         try {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
-            
+
             request.onerror = (event) => {
                 console.error('IndexedDB error:', event.target.error);
                 // Continue without database
                 resolve(null);
             };
-            
+
             request.onsuccess = () => {
                 db = request.result;
                 resolve(db);
             };
-            
+
             request.onupgradeneeded = (event) => {
                 const database = event.target.result;
-                
+
                 // Delete old store if exists (from version 1)
                 if (database.objectStoreNames.contains('state')) {
                     database.deleteObjectStore('state');
                 }
-                
+
                 // Create projects store
                 if (!database.objectStoreNames.contains(PROJECTS_STORE)) {
                     database.createObjectStore(PROJECTS_STORE, { keyPath: 'id' });
                 }
-                
+
                 // Create meta store for project list and current project
                 if (!database.objectStoreNames.contains(META_STORE)) {
                     database.createObjectStore(META_STORE, { keyPath: 'key' });
                 }
             };
-            
+
             request.onblocked = () => {
                 console.warn('Database upgrade blocked. Please close other tabs.');
                 resolve(null);
@@ -881,15 +910,15 @@ function openDatabase() {
 // Load project list and current project
 async function loadProjectsMeta() {
     if (!db) return;
-    
+
     return new Promise((resolve) => {
         try {
             const transaction = db.transaction([META_STORE], 'readonly');
             const store = transaction.objectStore(META_STORE);
-            
+
             const projectsReq = store.get('projects');
             const currentReq = store.get('currentProject');
-            
+
             transaction.oncomplete = () => {
                 if (projectsReq.result) {
                     projects = projectsReq.result.value;
@@ -900,7 +929,7 @@ async function loadProjectsMeta() {
                 updateProjectSelector();
                 resolve();
             };
-            
+
             transaction.onerror = () => resolve();
         } catch (e) {
             resolve();
@@ -911,7 +940,7 @@ async function loadProjectsMeta() {
 // Save project list and current project
 function saveProjectsMeta() {
     if (!db) return;
-    
+
     try {
         const transaction = db.transaction([META_STORE], 'readwrite');
         const store = transaction.objectStore(META_STORE);
@@ -968,22 +997,34 @@ async function init() {
         await loadState();
         syncUIWithState();
         updateCanvas();
+
+        // Initialize undo/redo with initial state
+        if (window.UndoRedo) {
+            window.UndoRedo.initialize({
+                screenshots: state.screenshots.map(s => ({
+                    name: s.name,
+                    deviceType: s.deviceType,
+                    localizedImages: s.localizedImages ? Object.keys(s.localizedImages).reduce((acc, lang) => {
+                        acc[lang] = { src: s.localizedImages[lang]?.src, name: s.localizedImages[lang]?.name };
+                        return acc;
+                    }, {}) : {},
+                    background: JSON.parse(JSON.stringify(s.background)),
+                    screenshot: JSON.parse(JSON.stringify(s.screenshot)),
+                    text: JSON.parse(JSON.stringify(s.text))
+                })),
+                selectedIndex: state.selectedIndex,
+                outputDevice: state.outputDevice,
+                currentLanguage: state.currentLanguage,
+                projectLanguages: [...state.projectLanguages],
+                defaults: JSON.parse(JSON.stringify(state.defaults))
+            });
+        }
     } catch (e) {
         console.error('Initialization error:', e);
         // Continue with defaults
         syncUIWithState();
         updateCanvas();
     }
-}
-
-// Set up event listeners immediately (don't wait for async init)
-function initSync() {
-    setupEventListeners();
-    initFontPicker();
-    updateGradientStopsUI();
-    updateCanvas();
-    // Then load saved data asynchronously
-    init();
 }
 
 // Debounce utility for saveState
@@ -999,6 +1040,16 @@ function debouncedSaveState() {
         saveState();
         saveStateTimeout = null;
     }, SAVE_DEBOUNCE_MS);
+}
+
+// Set up event listeners immediately (don't wait for async init)
+function initSync() {
+    setupEventListeners();
+    initFontPicker();
+    updateGradientStopsUI();
+    updateCanvas();
+    // Then load saved data asynchronously
+    init();
 }
 
 // Save state to IndexedDB for current project
@@ -1056,21 +1107,84 @@ function saveState() {
         const transaction = db.transaction([PROJECTS_STORE], 'readwrite');
         const store = transaction.objectStore(PROJECTS_STORE);
         store.put(stateToSave);
+
+        // Show save indicator
+        showSaveIndicator();
     } catch (e) {
         console.error('Error saving state:', e);
+    }
+}
+
+// Show save indicator briefly
+let saveIndicatorTimeout = null;
+function showSaveIndicator() {
+    const indicator = document.getElementById('save-indicator');
+    if (!indicator) return;
+
+    // Clear any existing timeout
+    if (saveIndicatorTimeout) {
+        clearTimeout(saveIndicatorTimeout);
+    }
+
+    // Show the indicator
+    indicator.style.display = 'inline-flex';
+    indicator.classList.add('visible');
+
+    // Hide after 2 seconds
+    saveIndicatorTimeout = setTimeout(() => {
+        indicator.classList.remove('visible');
+        setTimeout(() => {
+            indicator.style.display = 'none';
+        }, 300); // Wait for fade out
+    }, 2000);
+}
+
+// Track state for undo/redo - call when a significant user action completes
+let lastUndoSaveTime = 0;
+const UNDO_DEBOUNCE_MS = 500; // Minimum time between undo saves
+
+function trackUndoState(actionName = 'Change') {
+    const now = Date.now();
+    // Debounce to avoid saving too many states during rapid changes
+    if (now - lastUndoSaveTime < UNDO_DEBOUNCE_MS) return;
+
+    if (window.UndoRedo) {
+        // Create a lightweight copy of state for undo (without Image objects)
+        const undoState = {
+            screenshots: state.screenshots.map(s => ({
+                name: s.name,
+                deviceType: s.deviceType,
+                localizedImages: s.localizedImages ? Object.keys(s.localizedImages).reduce((acc, lang) => {
+                    acc[lang] = { src: s.localizedImages[lang]?.src, name: s.localizedImages[lang]?.name };
+                    return acc;
+                }, {}) : {},
+                background: JSON.parse(JSON.stringify(s.background)),
+                screenshot: JSON.parse(JSON.stringify(s.screenshot)),
+                text: JSON.parse(JSON.stringify(s.text))
+            })),
+            selectedIndex: state.selectedIndex,
+            outputDevice: state.outputDevice,
+            customWidth: state.customWidth,
+            customHeight: state.customHeight,
+            currentLanguage: state.currentLanguage,
+            projectLanguages: [...state.projectLanguages],
+            defaults: JSON.parse(JSON.stringify(state.defaults))
+        };
+        window.UndoRedo.saveState(undoState, actionName);
+        lastUndoSaveTime = now;
     }
 }
 
 // Load state from IndexedDB for current project
 function loadState() {
     if (!db) return Promise.resolve();
-    
+
     return new Promise((resolve) => {
         try {
             const transaction = db.transaction([PROJECTS_STORE], 'readonly');
             const store = transaction.objectStore(PROJECTS_STORE);
             const request = store.get(currentProjectId);
-            
+
             request.onsuccess = () => {
                 const parsed = request.result;
                 if (parsed) {
@@ -1239,7 +1353,7 @@ function loadState() {
                 }
                 resolve();
             };
-            
+
             request.onerror = () => {
                 console.error('Error loading state:', request.error);
                 resolve();
@@ -1355,10 +1469,10 @@ function resetStateToDefaults() {
 async function switchProject(projectId) {
     // Save current project first
     saveState();
-    
+
     currentProjectId = projectId;
     saveProjectsMeta();
-    
+
     // Reset and load new project
     resetStateToDefaults();
     await loadState();
@@ -1392,7 +1506,7 @@ function renameProject(newName) {
 // Delete current project
 async function deleteProject() {
     if (projects.length <= 1) {
-        alert('Cannot delete the only project');
+        showAppAlert('Cannot delete the only project', 'info');
         return;
     }
 
@@ -1414,6 +1528,138 @@ async function deleteProject() {
     await switchProject(projects[0].id);
     updateProjectSelector();
 }
+
+// Export current project to JSON file
+function exportProject() {
+    const project = projects.find(p => p.id === currentProjectId);
+    if (!project) {
+        showAppAlert('No project to export', 'error');
+        return;
+    }
+
+    // Build export data
+    const exportData = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        project: {
+            name: project.name,
+            screenshots: state.screenshots.map(s => ({
+                name: s.name,
+                deviceType: s.deviceType,
+                localizedImages: s.localizedImages ? Object.keys(s.localizedImages).reduce((acc, lang) => {
+                    acc[lang] = {
+                        src: s.localizedImages[lang]?.src,
+                        name: s.localizedImages[lang]?.name
+                    };
+                    return acc;
+                }, {}) : {},
+                background: s.background,
+                screenshot: s.screenshot,
+                text: s.text
+            })),
+            outputDevice: state.outputDevice,
+            customWidth: state.customWidth,
+            customHeight: state.customHeight,
+            currentLanguage: state.currentLanguage,
+            projectLanguages: state.projectLanguages,
+            defaults: state.defaults
+        }
+    };
+
+    // Create and download JSON file
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.download = `${project.name.replace(/[^a-zA-Z0-9]/g, '_')}_backup.json`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    showAppAlert('Project exported successfully!', 'success');
+}
+
+// Import project from JSON file
+async function importProject() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+
+            // Validate import data
+            if (!data.project || !data.version) {
+                throw new Error('Invalid project file format');
+            }
+
+            // Create new project
+            const projectName = data.project.name + ' (imported)';
+            await createProject(projectName);
+
+            // Load screenshots and settings
+            state.outputDevice = data.project.outputDevice || 'iphone-6.7';
+            state.customWidth = data.project.customWidth || 1290;
+            state.customHeight = data.project.customHeight || 2796;
+            state.currentLanguage = data.project.currentLanguage || 'en';
+            state.projectLanguages = data.project.projectLanguages || ['en'];
+            state.defaults = data.project.defaults || state.defaults;
+
+            // Load screenshots with images
+            state.screenshots = [];
+            for (const savedSs of data.project.screenshots) {
+                // Recreate Image objects from src data
+                const localizedImages = {};
+                for (const lang in savedSs.localizedImages) {
+                    const langData = savedSs.localizedImages[lang];
+                    if (langData?.src) {
+                        const img = new Image();
+                        await new Promise((resolve, reject) => {
+                            img.onload = resolve;
+                            img.onerror = reject;
+                            img.src = langData.src;
+                        });
+                        localizedImages[lang] = {
+                            image: img,
+                            src: langData.src,
+                            name: langData.name
+                        };
+                    }
+                }
+
+                state.screenshots.push({
+                    name: savedSs.name,
+                    deviceType: savedSs.deviceType,
+                    image: Object.values(localizedImages)[0]?.image,
+                    localizedImages: localizedImages,
+                    background: savedSs.background || JSON.parse(JSON.stringify(state.defaults.background)),
+                    screenshot: savedSs.screenshot || JSON.parse(JSON.stringify(state.defaults.screenshot)),
+                    text: savedSs.text || JSON.parse(JSON.stringify(state.defaults.text))
+                });
+            }
+
+            state.selectedIndex = 0;
+            saveState();
+            updateScreenshotList();
+            syncUIWithState();
+            updateCanvas();
+
+            showAppAlert(`Project "${projectName}" imported successfully with ${state.screenshots.length} screenshots!`, 'success');
+        } catch (error) {
+            console.error('Import failed:', error);
+            showAppAlert('Failed to import project: ' + error.message, 'error');
+        }
+    };
+
+    input.click();
+}
+
+// Make export/import available globally
+window.exportProject = exportProject;
+window.importProject = importProject;
 
 // Sync UI controls with current state
 function syncUIWithState() {
@@ -1525,6 +1771,7 @@ function syncUIWithState() {
     // Sync text style buttons
     document.querySelectorAll('#headline-style button').forEach(btn => {
         const style = btn.dataset.style;
+        if (!style) return; // Skip buttons without data-style (like shadow toggle)
         const key = 'headline' + style.charAt(0).toUpperCase() + style.slice(1);
         btn.classList.toggle('active', txt[key] || false);
     });
@@ -1546,6 +1793,7 @@ function syncUIWithState() {
     // Sync subheadline style buttons
     document.querySelectorAll('#subheadline-style button').forEach(btn => {
         const style = btn.dataset.style;
+        if (!style) return; // Skip buttons without data-style (like shadow toggle)
         const key = 'subheadline' + style.charAt(0).toUpperCase() + style.slice(1);
         btn.classList.toggle('active', txt[key] || false);
     });
@@ -1743,14 +1991,18 @@ function setupEventListeners() {
 
     document.getElementById('delete-project-btn').addEventListener('click', () => {
         if (projects.length <= 1) {
-            alert('Cannot delete the only project');
+            showAppAlert('Cannot delete the only project', 'info');
             return;
         }
         const project = projects.find(p => p.id === currentProjectId);
-        document.getElementById('delete-project-message').textContent = 
+        document.getElementById('delete-project-message').textContent =
             `Are you sure you want to delete "${project ? project.name : 'this project'}"? This cannot be undone.`;
         document.getElementById('delete-project-modal').classList.add('visible');
     });
+
+    // Export/Import project buttons
+    document.getElementById('export-project-btn')?.addEventListener('click', exportProject);
+    document.getElementById('import-project-btn')?.addEventListener('click', importProject);
 
     // Project modal buttons
     document.getElementById('project-modal-cancel').addEventListener('click', () => {
@@ -1760,11 +2012,11 @@ function setupEventListeners() {
     document.getElementById('project-modal-confirm').addEventListener('click', async () => {
         const name = document.getElementById('project-name-input').value.trim();
         if (!name) {
-            alert('Please enter a project name');
+            showAppAlert('Please enter a project name', 'info');
             return;
         }
         if (name.length > 50) {
-            alert('Project name must be 50 characters or less');
+            showAppAlert('Project name must be 50 characters or less', 'info');
             return;
         }
 
@@ -1778,7 +2030,7 @@ function setupEventListeners() {
             document.getElementById('project-modal').classList.remove('visible');
         } catch (e) {
             console.error('Project operation failed:', e);
-            alert('Failed to complete operation: ' + e.message);
+            showAppAlert('Failed to complete operation: ' + e.message, 'error');
         }
     });
 
@@ -1799,7 +2051,7 @@ function setupEventListeners() {
             document.getElementById('delete-project-modal').classList.remove('visible');
         } catch (e) {
             console.error('Failed to delete project:', e);
-            alert('Failed to delete project: ' + e.message);
+            showAppAlert('Failed to delete project: ' + e.message, 'error');
         }
     });
 
@@ -1929,7 +2181,7 @@ function setupEventListeners() {
         openTranslateModal('subheadline');
     });
 
-    document.getElementById('translate-source-lang').addEventListener('change', (e) => {
+    document.getElementById('translate-source-lang').addEventListener('change', (_e) => {
         updateTranslateSourcePreview();
     });
 
@@ -2092,11 +2344,11 @@ function setupEventListeners() {
             document.querySelectorAll('#bg-type-selector button').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             setBackground('type', btn.dataset.type);
-            
+
             document.getElementById('gradient-options').style.display = btn.dataset.type === 'gradient' ? 'block' : 'none';
             document.getElementById('solid-options').style.display = btn.dataset.type === 'solid' ? 'block' : 'none';
             document.getElementById('image-options').style.display = btn.dataset.type === 'image' ? 'block' : 'none';
-            
+
             updateCanvas();
         });
     });
@@ -2143,12 +2395,12 @@ function setupEventListeners() {
         swatch.addEventListener('click', () => {
             document.querySelectorAll('.preset-swatch').forEach(s => s.classList.remove('selected'));
             swatch.classList.add('selected');
-            
+
             // Parse gradient from preset
             const gradientStr = swatch.dataset.gradient;
             const angleMatch = gradientStr.match(/(\d+)deg/);
             const colorMatches = gradientStr.matchAll(/(#[a-fA-F0-9]{6})\s+(\d+)%/g);
-            
+
             if (angleMatch) {
                 const angle = parseInt(angleMatch[1]);
                 setBackground('gradient.angle', angle);
@@ -2164,7 +2416,7 @@ function setupEventListeners() {
                 setBackground('gradient.stops', stops);
                 updateGradientStopsUI();
             }
-            
+
             updateCanvas();
         });
     });
@@ -2233,13 +2485,13 @@ function setupEventListeners() {
                 };
                 img.onerror = () => {
                     console.error('Failed to load background image');
-                    alert('Failed to load image. Please try a different file.');
+                    showAppAlert('Failed to load image. Please try a different file.', 'error');
                 };
                 img.src = event.target.result;
             };
-            reader.onerror = () => {
+            reader.onerror = (_e) => {
                 console.error('Failed to read background image file');
-                alert('Failed to read file. Please try again.');
+                showAppAlert('Failed to read file. Please try again.', 'error');
             };
             reader.readAsDataURL(e.target.files[0]);
         }
@@ -2269,7 +2521,7 @@ function setupEventListeners() {
     });
 
     // Noise toggle
-    document.getElementById('noise-toggle').addEventListener('click', function() {
+    document.getElementById('noise-toggle').addEventListener('click', function () {
         this.classList.toggle('active');
         const noiseEnabled = this.classList.contains('active');
         setBackground('noise', noiseEnabled);
@@ -2322,7 +2574,7 @@ function setupEventListeners() {
     });
 
     // Shadow toggle
-    document.getElementById('shadow-toggle').addEventListener('click', function() {
+    document.getElementById('shadow-toggle').addEventListener('click', function () {
         this.classList.toggle('active');
         const shadowEnabled = this.classList.contains('active');
         setScreenshotSetting('shadow.enabled', shadowEnabled);
@@ -2368,7 +2620,7 @@ function setupEventListeners() {
     });
 
     // Frame toggle
-    document.getElementById('frame-toggle').addEventListener('click', function() {
+    document.getElementById('frame-toggle').addEventListener('click', function () {
         this.classList.toggle('active');
         const frameEnabled = this.classList.contains('active');
         setScreenshotSetting('frame.enabled', frameEnabled);
@@ -2410,7 +2662,7 @@ function setupEventListeners() {
     });
 
     // Headline toggle
-    document.getElementById('headline-toggle').addEventListener('click', function() {
+    document.getElementById('headline-toggle').addEventListener('click', function () {
         this.classList.toggle('active');
         const enabled = this.classList.contains('active');
         setTextValue('headlineEnabled', enabled);
@@ -2426,7 +2678,7 @@ function setupEventListeners() {
     });
 
     // Subheadline toggle
-    document.getElementById('subheadline-toggle').addEventListener('click', function() {
+    document.getElementById('subheadline-toggle').addEventListener('click', function () {
         this.classList.toggle('active');
         const enabled = this.classList.contains('active');
         setTextValue('subheadlineEnabled', enabled);
@@ -2470,6 +2722,7 @@ function setupEventListeners() {
     document.querySelectorAll('#headline-style button').forEach(btn => {
         btn.addEventListener('click', () => {
             const style = btn.dataset.style;
+            if (!style) return; // Skip buttons without data-style (like shadow toggle)
             const key = 'headline' + style.charAt(0).toUpperCase() + style.slice(1);
             const text = getTextSettings();
             const newValue = !text[key];
@@ -2534,6 +2787,7 @@ function setupEventListeners() {
     document.querySelectorAll('#subheadline-style button').forEach(btn => {
         btn.addEventListener('click', () => {
             const style = btn.dataset.style;
+            if (!style) return; // Skip buttons without data-style (like shadow toggle)
             const key = 'subheadline' + style.charAt(0).toUpperCase() + style.slice(1);
             const text = getTextSettings();
             const newValue = !text[key];
@@ -2546,6 +2800,11 @@ function setupEventListeners() {
     // Export buttons
     document.getElementById('export-current').addEventListener('click', exportCurrent);
     document.getElementById('export-all').addEventListener('click', exportAll);
+    document.getElementById('export-all-sizes')?.addEventListener('click', () => {
+        // Show platform selection dialog
+        const platform = confirm('Export for iOS? (Cancel for Android)') ? 'iOS' : 'Android';
+        exportAllSizes(platform);
+    });
 
     // Position presets
     document.querySelectorAll('.position-preset').forEach(btn => {
@@ -2642,6 +2901,205 @@ function setupEventListeners() {
         }
         updateCanvas(); // Keep export canvas in sync
     });
+
+    // Global keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        // Skip if user is typing in an input field
+        const activeEl = document.activeElement;
+        const isTyping = activeEl && (
+            activeEl.tagName === 'INPUT' ||
+            activeEl.tagName === 'TEXTAREA' ||
+            activeEl.isContentEditable
+        );
+
+        // Escape - close any open modal
+        if (e.key === 'Escape') {
+            const modals = document.querySelectorAll('.modal[style*="flex"], .modal.active');
+            modals.forEach(modal => {
+                modal.style.display = 'none';
+                modal.classList.remove('active');
+            });
+            return;
+        }
+
+        // Don't process other shortcuts if typing
+        if (isTyping) return;
+
+        // Arrow Left - Previous screenshot
+        if (e.key === 'ArrowLeft' && !e.ctrlKey && !e.metaKey) {
+            if (state.screenshots.length > 1 && state.selectedIndex > 0) {
+                e.preventDefault();
+                slideToScreenshot(state.selectedIndex - 1);
+            }
+        }
+
+        // Arrow Right - Next screenshot
+        if (e.key === 'ArrowRight' && !e.ctrlKey && !e.metaKey) {
+            if (state.screenshots.length > 1 && state.selectedIndex < state.screenshots.length - 1) {
+                e.preventDefault();
+                slideToScreenshot(state.selectedIndex + 1);
+            }
+        }
+
+        // Delete or Backspace - Delete current screenshot
+        if ((e.key === 'Delete' || e.key === 'Backspace') && !e.ctrlKey && !e.metaKey) {
+            if (state.screenshots.length > 0) {
+                e.preventDefault();
+                deleteScreenshot(state.selectedIndex);
+            }
+        }
+
+        // Ctrl/Cmd + E - Export current
+        if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+            e.preventDefault();
+            if (state.screenshots.length > 0) {
+                exportCurrent();
+            }
+        }
+
+        // Ctrl/Cmd + Shift + E - Export all
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') {
+            e.preventDefault();
+            if (state.screenshots.length > 0) {
+                exportAll();
+            }
+        }
+
+        // Ctrl/Cmd + S - Save (show indicator even though auto-save)
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            saveState();
+            if (typeof showSaveIndicator === 'function') {
+                showSaveIndicator();
+            }
+        }
+
+        // Ctrl/Cmd + D - Duplicate current screenshot
+        if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+            e.preventDefault();
+            if (state.screenshots.length > 0) {
+                duplicateScreenshot(state.selectedIndex);
+            }
+        }
+    });
+
+    // Export format selection
+    const exportFormatSelect = document.getElementById('export-format');
+    const qualityWrapper = document.getElementById('quality-slider-wrapper');
+    const exportQualitySlider = document.getElementById('export-quality');
+    const exportQualityValue = document.getElementById('export-quality-value');
+
+    if (exportFormatSelect) {
+        exportFormatSelect.addEventListener('change', (e) => {
+            state.export.format = e.target.value;
+            // Show/hide quality slider based on format
+            if (qualityWrapper) {
+                qualityWrapper.style.display = e.target.value === 'png' ? 'none' : 'flex';
+            }
+        });
+    }
+
+    if (exportQualitySlider) {
+        exportQualitySlider.addEventListener('input', (e) => {
+            const quality = parseInt(e.target.value);
+            state.export.quality = quality;
+            if (exportQualityValue) {
+                exportQualityValue.textContent = `${quality}%`;
+            }
+        });
+    }
+
+    // Text Shadow Controls - Headline
+    const headlineShadowToggle = document.getElementById('headline-shadow-toggle');
+    const headlineShadowSettings = document.getElementById('headline-shadow-settings');
+
+    if (headlineShadowToggle && headlineShadowSettings) {
+        headlineShadowToggle.addEventListener('click', () => {
+            const txt = getText();
+            if (!txt.headlineShadow) {
+                txt.headlineShadow = { enabled: false, color: '#000000', blur: 10, offsetX: 0, offsetY: 4, opacity: 50 };
+            }
+            txt.headlineShadow.enabled = !txt.headlineShadow.enabled;
+            headlineShadowToggle.classList.toggle('active', txt.headlineShadow.enabled);
+            headlineShadowSettings.style.display = txt.headlineShadow.enabled ? 'block' : 'none';
+            updateCanvas();
+            trackUndoState('Toggle headline shadow');
+        });
+    }
+
+    // Headline shadow controls
+    const setupShadowControl = (prefix, shadowKey) => {
+        const colorInput = document.getElementById(`${prefix}-shadow-color`);
+        const blurInput = document.getElementById(`${prefix}-shadow-blur`);
+        const blurValue = document.getElementById(`${prefix}-shadow-blur-value`);
+        const opacityInput = document.getElementById(`${prefix}-shadow-opacity`);
+        const opacityValue = document.getElementById(`${prefix}-shadow-opacity-value`);
+        const xInput = document.getElementById(`${prefix}-shadow-x`);
+        const xValue = document.getElementById(`${prefix}-shadow-x-value`);
+        const yInput = document.getElementById(`${prefix}-shadow-y`);
+        const yValue = document.getElementById(`${prefix}-shadow-y-value`);
+
+        if (colorInput) {
+            colorInput.addEventListener('input', (e) => {
+                const txt = getText();
+                if (txt[shadowKey]) txt[shadowKey].color = e.target.value;
+                updateCanvas();
+            });
+        }
+        if (blurInput) {
+            blurInput.addEventListener('input', (e) => {
+                const txt = getText();
+                if (txt[shadowKey]) txt[shadowKey].blur = parseInt(e.target.value);
+                if (blurValue) blurValue.textContent = e.target.value;
+                updateCanvas();
+            });
+        }
+        if (opacityInput) {
+            opacityInput.addEventListener('input', (e) => {
+                const txt = getText();
+                if (txt[shadowKey]) txt[shadowKey].opacity = parseInt(e.target.value);
+                if (opacityValue) opacityValue.textContent = `${e.target.value}%`;
+                updateCanvas();
+            });
+        }
+        if (xInput) {
+            xInput.addEventListener('input', (e) => {
+                const txt = getText();
+                if (txt[shadowKey]) txt[shadowKey].offsetX = parseInt(e.target.value);
+                if (xValue) xValue.textContent = e.target.value;
+                updateCanvas();
+            });
+        }
+        if (yInput) {
+            yInput.addEventListener('input', (e) => {
+                const txt = getText();
+                if (txt[shadowKey]) txt[shadowKey].offsetY = parseInt(e.target.value);
+                if (yValue) yValue.textContent = e.target.value;
+                updateCanvas();
+            });
+        }
+    };
+
+    setupShadowControl('headline', 'headlineShadow');
+    setupShadowControl('subheadline', 'subheadlineShadow');
+
+    // Text Shadow Controls - Subheadline
+    const subheadlineShadowToggle = document.getElementById('subheadline-shadow-toggle');
+    const subheadlineShadowSettings = document.getElementById('subheadline-shadow-settings');
+
+    if (subheadlineShadowToggle && subheadlineShadowSettings) {
+        subheadlineShadowToggle.addEventListener('click', () => {
+            const txt = getText();
+            if (!txt.subheadlineShadow) {
+                txt.subheadlineShadow = { enabled: false, color: '#000000', blur: 8, offsetX: 0, offsetY: 3, opacity: 40 };
+            }
+            txt.subheadlineShadow.enabled = !txt.subheadlineShadow.enabled;
+            subheadlineShadowToggle.classList.toggle('active', txt.subheadlineShadow.enabled);
+            subheadlineShadowSettings.style.display = txt.subheadlineShadow.enabled ? 'block' : 'none';
+            updateCanvas();
+            trackUndoState('Toggle subheadline shadow');
+        });
+    }
 }
 
 // Per-screenshot mode is now always active (all settings are per-screenshot)
@@ -2840,7 +3298,7 @@ function removeProjectLanguage(lang) {
 }
 
 // Language helper functions
-function addHeadlineLanguage(lang, flag) {
+function addHeadlineLanguage(lang, _flag) {
     const text = getTextSettings();
     if (!text.headlineLanguages.includes(lang)) {
         text.headlineLanguages.push(lang);
@@ -2852,7 +3310,7 @@ function addHeadlineLanguage(lang, flag) {
     }
 }
 
-function addSubheadlineLanguage(lang, flag) {
+function addSubheadlineLanguage(lang, _flag) {
     const text = getTextSettings();
     if (!text.subheadlineLanguages.includes(lang)) {
         text.subheadlineLanguages.push(lang);
@@ -2864,38 +3322,38 @@ function addSubheadlineLanguage(lang, flag) {
     }
 }
 
-function removeHeadlineLanguage(lang) {
+function _removeHeadlineLanguage(lang) {
     const text = getTextSettings();
     if (lang === 'en') return; // Can't remove default
-    
+
     const index = text.headlineLanguages.indexOf(lang);
     if (index > -1) {
         text.headlineLanguages.splice(index, 1);
         delete text.headlines[lang];
-        
+
         if (text.currentHeadlineLang === lang) {
             text.currentHeadlineLang = 'en';
         }
-        
+
         updateHeadlineLanguageUI();
         switchHeadlineLanguage(text.currentHeadlineLang);
         saveState();
     }
 }
 
-function removeSubheadlineLanguage(lang) {
+function _removeSubheadlineLanguage(lang) {
     const text = getTextSettings();
     if (lang === 'en') return; // Can't remove default
-    
+
     const index = text.subheadlineLanguages.indexOf(lang);
     if (index > -1) {
         text.subheadlineLanguages.splice(index, 1);
         delete text.subheadlines[lang];
-        
+
         if (text.currentSubheadlineLang === lang) {
             text.currentSubheadlineLang = 'en';
         }
-        
+
         updateSubheadlineLanguageUI();
         switchSubheadlineLanguage(text.currentSubheadlineLang);
         saveState();
@@ -2931,23 +3389,26 @@ function updateSubheadlineLanguageUI() {
 // Translate modal functions
 let currentTranslateTarget = null;
 
-const languageNames = {
-    'en': 'English (US)', 'en-gb': 'English (UK)', 'de': 'German', 'fr': 'French', 
-    'es': 'Spanish', 'it': 'Italian', 'pt': 'Portuguese', 'pt-br': 'Portuguese (BR)',
-    'nl': 'Dutch', 'ru': 'Russian', 'ja': 'Japanese', 'ko': 'Korean',
-    'zh': 'Chinese (Simplified)', 'zh-tw': 'Chinese (Traditional)', 'ar': 'Arabic',
-    'hi': 'Hindi', 'tr': 'Turkish', 'pl': 'Polish', 'sv': 'Swedish',
-    'da': 'Danish', 'no': 'Norwegian', 'fi': 'Finnish', 'th': 'Thai',
-    'vi': 'Vietnamese', 'id': 'Indonesian'
-};
+// languageNames defined in language-utils.js - fallback if not loaded
+if (typeof languageNames === 'undefined') {
+    window.languageNames = {
+        'en': 'English (US)', 'en-gb': 'English (UK)', 'de': 'German', 'fr': 'French',
+        'es': 'Spanish', 'it': 'Italian', 'pt': 'Portuguese', 'pt-br': 'Portuguese (BR)',
+        'nl': 'Dutch', 'ru': 'Russian', 'ja': 'Japanese', 'ko': 'Korean',
+        'zh': 'Chinese (Simplified)', 'zh-tw': 'Chinese (Traditional)', 'ar': 'Arabic',
+        'hi': 'Hindi', 'tr': 'Turkish', 'pl': 'Polish', 'sv': 'Swedish',
+        'da': 'Danish', 'no': 'Norwegian', 'fi': 'Finnish', 'th': 'Thai',
+        'vi': 'Vietnamese', 'id': 'Indonesian'
+    };
+}
 
 function openTranslateModal(target) {
     currentTranslateTarget = target;
     const text = getTextSettings();
     const isHeadline = target === 'headline';
-    
+
     document.getElementById('translate-target-type').textContent = isHeadline ? 'Headline' : 'Subheadline';
-    
+
     const languages = isHeadline ? text.headlineLanguages : text.subheadlineLanguages;
     const texts = isHeadline ? text.headlines : text.subheadlines;
 
@@ -2961,14 +3422,14 @@ function openTranslateModal(target) {
         if (index === 0) option.selected = true;
         sourceSelect.appendChild(option);
     });
-    
+
     // Update source preview
     updateTranslateSourcePreview();
-    
+
     // Populate target languages
     const targetsContainer = document.getElementById('translate-targets');
     targetsContainer.innerHTML = '';
-    
+
     languages.forEach(lang => {
         const item = document.createElement('div');
         item.className = 'translate-target-item';
@@ -2982,7 +3443,7 @@ function openTranslateModal(target) {
         `;
         targetsContainer.appendChild(item);
     });
-    
+
     document.getElementById('translate-modal').classList.add('visible');
 }
 
@@ -2992,7 +3453,7 @@ function updateTranslateSourcePreview() {
     const isHeadline = currentTranslateTarget === 'headline';
     const texts = isHeadline ? text.headlines : text.subheadlines;
     const sourceText = texts[sourceLang] || '';
-    
+
     document.getElementById('source-text-preview').textContent = sourceText || 'No text entered';
 }
 
@@ -3000,14 +3461,14 @@ function applyTranslations() {
     const text = getTextSettings();
     const isHeadline = currentTranslateTarget === 'headline';
     const texts = isHeadline ? text.headlines : text.subheadlines;
-    
+
     // Get all translations from the modal
     document.querySelectorAll('#translate-targets .translate-target-item').forEach(item => {
         const lang = item.dataset.lang;
         const textarea = item.querySelector('textarea');
         texts[lang] = textarea.value;
     });
-    
+
     // Update the current text field
     const currentLang = isHeadline ? text.currentHeadlineLang : text.currentSubheadlineLang;
     if (isHeadline) {
@@ -3015,7 +3476,7 @@ function applyTranslations() {
     } else {
         document.getElementById('subheadline-text').value = texts[currentLang] || '';
     }
-    
+
     saveState();
     updateCanvas();
 }
@@ -3154,14 +3615,14 @@ Translate to these language codes: ${targetLangs.join(', ')}`;
 function showAppAlert(message, type = 'info') {
     return new Promise((resolve) => {
         const iconBg = type === 'error' ? 'rgba(255, 69, 58, 0.2)' :
-                       type === 'success' ? 'rgba(52, 199, 89, 0.2)' :
-                       'rgba(10, 132, 255, 0.2)';
+            type === 'success' ? 'rgba(52, 199, 89, 0.2)' :
+                'rgba(10, 132, 255, 0.2)';
         const iconColor = type === 'error' ? '#ff453a' :
-                          type === 'success' ? '#34c759' :
-                          'var(--accent)';
+            type === 'success' ? '#34c759' :
+                'var(--accent)';
         const iconPath = type === 'error' ? '<path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>' :
-                         type === 'success' ? '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>' :
-                         '<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+            type === 'success' ? '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>' :
+                '<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
 
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay visible';
@@ -3193,7 +3654,7 @@ function showAppAlert(message, type = 'info') {
 }
 
 // Helper function to show styled confirm modal
-function showAppConfirm(message, confirmText = 'Confirm', cancelText = 'Cancel') {
+function _showAppConfirm(message, confirmText = 'Confirm', cancelText = 'Cancel') {
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay visible';
@@ -3765,12 +4226,12 @@ function getTextSettings() {
 }
 
 // Load text UI from current screenshot's settings
-function loadTextUIFromScreenshot() {
+function _loadTextUIFromScreenshot() {
     updateTextUI(getText());
 }
 
 // Load text UI from default settings
-function loadTextUIFromGlobal() {
+function _loadTextUIFromGlobal() {
     updateTextUI(state.defaults.text);
 }
 
@@ -3785,6 +4246,7 @@ function updateTextUI(text) {
     // Sync text style buttons
     document.querySelectorAll('#headline-style button').forEach(btn => {
         const style = btn.dataset.style;
+        if (!style) return; // Skip buttons without data-style (like shadow toggle)
         const key = 'headline' + style.charAt(0).toUpperCase() + style.slice(1);
         btn.classList.toggle('active', text[key] || false);
     });
@@ -3805,6 +4267,7 @@ function updateTextUI(text) {
     // Sync subheadline style buttons
     document.querySelectorAll('#subheadline-style button').forEach(btn => {
         const style = btn.dataset.style;
+        if (!style) return; // Skip buttons without data-style (like shadow toggle)
         const key = 'subheadline' + style.charAt(0).toUpperCase() + style.slice(1);
         btn.classList.toggle('active', text[key] || false);
     });
@@ -3872,7 +4335,7 @@ function handleFiles(files) {
     // Show errors if any
     if (errors.length > 0) {
         console.warn('File validation errors:', errors);
-        alert('Some files could not be uploaded:\n\n' + errors.join('\n'));
+        showAppAlert('Some files could not be uploaded:\n\n' + errors.join('\n'), 'error');
     }
 
     // Process valid files
@@ -3893,7 +4356,7 @@ async function processElectronFilesSequentially(filesData) {
 }
 
 async function processElectronImageFile(fileData) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
         const img = new Image();
         img.onload = async () => {
             // Detect device type based on aspect ratio
@@ -3947,7 +4410,7 @@ async function processElectronImageFile(fileData) {
         };
         img.onerror = () => {
             console.error('Failed to load image:', fileData.name);
-            alert(`Failed to load image: ${fileData.name}. The file may be corrupted.`);
+            showAppAlert(`Failed to load image: ${fileData.name}. The file may be corrupted.`, 'error');
             resolve(); // Resolve anyway to continue processing other files
         };
         img.src = fileData.dataUrl;
@@ -4019,14 +4482,14 @@ async function processImageFile(file) {
             };
             img.onerror = () => {
                 console.error('Failed to load image:', file.name);
-                alert(`Failed to load image: ${file.name}. The file may be corrupted.`);
+                showAppAlert(`Failed to load image: ${file.name}. The file may be corrupted.`, 'error');
                 resolve(); // Resolve anyway to continue processing other files
             };
             img.src = e.target.result;
         };
         reader.onerror = () => {
             console.error('Failed to read file:', file.name);
-            alert(`Failed to read file: ${file.name}. Please try again.`);
+            showAppAlert(`Failed to read file: ${file.name}. Please try again.`, 'error');
             resolve(); // Resolve anyway to continue processing other files
         };
         reader.readAsDataURL(file);
@@ -4065,13 +4528,84 @@ function createNewScreenshot(img, src, name, lang, deviceType) {
         // Show Magical Titles tooltip hint for first screenshot
         setTimeout(() => showMagicalTitlesTooltip(), 500);
     }
+    trackUndoState('Add screenshot');
+}
+
+// Delete a screenshot by index
+function deleteScreenshot(index) {
+    if (state.screenshots.length === 0 || index < 0 || index >= state.screenshots.length) {
+        return;
+    }
+
+    state.screenshots.splice(index, 1);
+    if (state.selectedIndex >= state.screenshots.length) {
+        state.selectedIndex = Math.max(0, state.screenshots.length - 1);
+    }
+    updateScreenshotList();
+    syncUIWithState();
+    updateGradientStopsUI();
+    updateCanvas();
+    trackUndoState('Delete screenshot');
+}
+
+// Duplicate a screenshot by index
+function duplicateScreenshot(index) {
+    if (state.screenshots.length === 0 || index < 0 || index >= state.screenshots.length) {
+        return;
+    }
+
+    const original = state.screenshots[index];
+
+    // Deep clone the screenshot settings
+    const duplicate = {
+        image: original.image, // Keep the same Image reference
+        name: original.name + ' (copy)',
+        deviceType: original.deviceType,
+        localizedImages: {},
+        background: JSON.parse(JSON.stringify(original.background)),
+        screenshot: JSON.parse(JSON.stringify(original.screenshot)),
+        text: JSON.parse(JSON.stringify(original.text)),
+        overrides: JSON.parse(JSON.stringify(original.overrides || {}))
+    };
+
+    // Copy localized images (keep Image references but clone metadata)
+    if (original.localizedImages) {
+        Object.keys(original.localizedImages).forEach(lang => {
+            const langData = original.localizedImages[lang];
+            if (langData) {
+                duplicate.localizedImages[lang] = {
+                    image: langData.image, // Keep same Image reference
+                    src: langData.src,
+                    name: langData.name
+                };
+            }
+        });
+    }
+
+    // Insert duplicate after the original
+    state.screenshots.splice(index + 1, 0, duplicate);
+    state.selectedIndex = index + 1;
+
+    updateScreenshotList();
+    syncUIWithState();
+    updateGradientStopsUI();
+    updateCanvas();
+    trackUndoState('Duplicate screenshot');
 }
 
 let draggedScreenshotIndex = null;
 
 function updateScreenshotList() {
     screenshotList.innerHTML = '';
-    noScreenshot.style.display = state.screenshots.length === 0 ? 'block' : 'none';
+    const hasNoScreenshots = state.screenshots.length === 0;
+    noScreenshot.style.display = hasNoScreenshots ? 'block' : 'none';
+    // Allow clicks to pass through canvas to upload overlay when no screenshots
+    canvas.style.pointerEvents = hasNoScreenshots ? 'none' : 'auto';
+    // Toggle overflow on canvas wrapper for proper clipping
+    const canvasWrapper = document.getElementById('canvas-wrapper');
+    if (canvasWrapper) {
+        canvasWrapper.classList.toggle('has-screenshots', !hasNoScreenshots);
+    }
 
     // Show transfer mode hint if active
     if (state.transferTarget !== null && state.screenshots.length > 1) {
@@ -4368,6 +4902,7 @@ function updateScreenshotList() {
                 syncUIWithState();
                 updateGradientStopsUI();
                 updateCanvas();
+                trackUndoState('Delete screenshot');
             });
         }
 
@@ -4390,7 +4925,14 @@ function updateScreenshotList() {
                 <div class="screenshot-device">Drop or click to browse</div>
             </div>
         `;
-        uploadItem.addEventListener('click', () => fileInput.click());
+        uploadItem.addEventListener('click', () => {
+            console.log('Upload clicked, triggering file input');
+            if (fileInput) {
+                fileInput.click();
+            } else {
+                console.error('File input not found!');
+            }
+        });
         screenshotList.appendChild(uploadItem);
     }
 
@@ -4537,13 +5079,13 @@ function replaceScreenshot(index) {
             };
             img.onerror = () => {
                 console.error('Failed to load replacement image:', file.name);
-                alert(`Failed to load image: ${file.name}. The file may be corrupted.`);
+                showAppAlert(`Failed to load image: ${file.name}. The file may be corrupted.`, 'error');
             };
             img.src = event.target.result;
         };
         reader.onerror = () => {
             console.error('Failed to read replacement file:', file.name);
-            alert(`Failed to read file: ${file.name}. Please try again.`);
+            showAppAlert(`Failed to read file: ${file.name}. Please try again.`, 'error');
         };
         reader.readAsDataURL(file);
 
@@ -4845,9 +5387,12 @@ function applyCategoryProfile(category) {
     const screenshot = state.screenshots[state.selectedIndex];
     if (!screenshot) return;
 
-    // Apply font settings
-    state.text.headlineFont = profile.fonts.headline;
-    state.text.subheadlineFont = profile.fonts.subheadline;
+    // Apply font settings to screenshot text
+    if (!screenshot.text) {
+        screenshot.text = window.Utils?.deepClone(state.defaults.text) || {};
+    }
+    screenshot.text.headlineFont = profile.fonts.headline;
+    screenshot.text.subheadlineFont = profile.fonts.subheadline;
 
     // Apply a color from the category palette
     const colorIndex = state.selectedIndex % profile.colors.length;
@@ -4879,8 +5424,8 @@ function applyCategoryProfile(category) {
 function magicDesign(appName = '', options = {}) {
     // Check if we should use AI Engine (has API key configured)
     const hasApiKey = localStorage.getItem('googleApiKey') ||
-                      localStorage.getItem('anthropicApiKey') ||
-                      localStorage.getItem('openaiApiKey');
+        localStorage.getItem('anthropicApiKey') ||
+        localStorage.getItem('openaiApiKey');
 
     // If AI Engine is available and has API key, delegate to full AI pipeline
     if (window.AIEngine?.magicDesign && hasApiKey && !options.forceBasic) {
@@ -4947,20 +5492,23 @@ function applyBasicMagicDesign(appName = '', options = {}) {
     screenshot.background.solid = profile.colors[colorIndex];
 
     // 9. Apply RULE 2 & 12: Typography settings
-    state.text.headlineFont = profile.fonts.headline;
-    state.text.subheadlineFont = profile.fonts.subheadline;
-    state.text.headlineSize = 72;
-    state.text.headlineWeight = '700';
-    state.text.lineHeight = 95;
-    state.text.stackedText = true;
-    state.text.position = 'top';
-    state.text.offsetY = 8;
-    state.text.headlineColor = '#FFFFFF';
+    if (!screenshot.text) {
+        screenshot.text = window.Utils?.deepClone(state.defaults.text) || {};
+    }
+    screenshot.text.headlineFont = profile.fonts.headline;
+    screenshot.text.subheadlineFont = profile.fonts.subheadline;
+    screenshot.text.headlineSize = 72;
+    screenshot.text.headlineWeight = '700';
+    screenshot.text.lineHeight = 95;
+    screenshot.text.stackedText = true;
+    screenshot.text.position = 'top';
+    screenshot.text.offsetY = 8;
+    screenshot.text.headlineColor = '#FFFFFF';
 
     // 10. Apply RULE 3: Subheadline settings
-    state.text.subheadlineSize = 28;
-    state.text.subheadlineWeight = '400';
-    state.text.subheadlineOpacity = 75;
+    screenshot.text.subheadlineSize = 28;
+    screenshot.text.subheadlineWeight = '400';
+    screenshot.text.subheadlineOpacity = 75;
 
     // 11. Apply corner radius for modern look
     screenshot.screenshot.cornerRadius = 45;
@@ -5301,7 +5849,7 @@ function drawWidgets() {
     });
 }
 
-function drawRatingWidget(ctx, x, y, widget, style, dims) {
+function drawRatingWidget(ctx, x, y, widget, style, _dims) {
     const fontSize = style.fontSize || 16;
     const padding = style.padding || 12;
     const borderRadius = style.borderRadius || 12;
@@ -5352,7 +5900,7 @@ function drawRatingWidget(ctx, x, y, widget, style, dims) {
     }
 }
 
-function drawDownloadsWidget(ctx, x, y, widget, style, dims) {
+function drawDownloadsWidget(ctx, x, y, widget, style, _dims) {
     const fontSize = style.fontSize || 14;
     const padding = style.padding || 10;
     const borderRadius = style.borderRadius || 10;
@@ -5396,7 +5944,7 @@ function drawDownloadsWidget(ctx, x, y, widget, style, dims) {
     ctx.fillText(widget.label || 'Downloads', x + totalWidth / 2, y + padding + numberFontSize + 6);
 }
 
-function drawAppOfTheDayWidget(ctx, x, y, widget, style, dims) {
+function drawAppOfTheDayWidget(ctx, x, y, widget, style, _dims) {
     const fontSize = style.fontSize || 14;
     const padding = style.padding || 12;
     const borderRadius = style.borderRadius || 16;
@@ -5434,7 +5982,7 @@ function drawAppOfTheDayWidget(ctx, x, y, widget, style, dims) {
     ctx.fillText(widget.text, x + padding + logoSize + 10, y + totalHeight / 2);
 }
 
-function drawBadgeWidget(ctx, x, y, widget, style, dims) {
+function drawBadgeWidget(ctx, x, y, widget, style, _dims) {
     const fontSize = style.fontSize || 14;
     const padding = style.padding || 10;
     const borderRadius = style.borderRadius || 8;
@@ -5475,7 +6023,7 @@ function drawBadgeWidget(ctx, x, y, widget, style, dims) {
     ctx.fillText(widget.text, x + padding + iconSpace, y + totalHeight / 2);
 }
 
-function drawTextWidget(ctx, x, y, widget, style, dims) {
+function drawTextWidget(ctx, x, y, widget, style, _dims) {
     const fontSize = style.fontSize || 14;
     const padding = style.padding || 8;
     const borderRadius = style.borderRadius || 8;
@@ -5940,7 +6488,7 @@ function drawDeviceFrameToContext(context, x, y, width, height, settings) {
     context.strokeStyle = frameColor;
     context.lineWidth = frameWidth;
     context.beginPath();
-    context.roundRect(x - frameWidth/2, y - frameWidth/2, width + frameWidth, height + frameWidth, radius);
+    context.roundRect(x - frameWidth / 2, y - frameWidth / 2, width + frameWidth, height + frameWidth, radius);
     context.stroke();
     context.globalAlpha = 1;
 }
@@ -5970,6 +6518,15 @@ function drawTextToContext(context, dims, txt) {
         const fontStyle = txt.headlineItalic ? 'italic' : 'normal';
         context.font = `${fontStyle} ${txt.headlineWeight} ${txt.headlineSize}px ${txt.headlineFont}`;
         context.fillStyle = txt.headlineColor;
+
+        // Apply headline shadow if enabled
+        const hs = txt.headlineShadow;
+        if (hs?.enabled) {
+            context.shadowColor = hexToRgba(hs.color, hs.opacity / 100);
+            context.shadowBlur = hs.blur;
+            context.shadowOffsetX = hs.offsetX;
+            context.shadowOffsetY = hs.offsetY;
+        }
 
         const lines = wrapText(context, headline, dims.width - padding * 2);
         const lineHeight = txt.headlineSize * (txt.lineHeight / 100);
@@ -6019,6 +6576,12 @@ function drawTextToContext(context, dims, txt) {
             // For bottom: lastLineY is already the bottom of last line, just add gap
             currentY = lastLineY + gap;
         }
+
+        // Reset shadow after headline
+        context.shadowColor = 'transparent';
+        context.shadowBlur = 0;
+        context.shadowOffsetX = 0;
+        context.shadowOffsetY = 0;
     }
 
     // Draw subheadline (always below headline visually)
@@ -6027,6 +6590,15 @@ function drawTextToContext(context, dims, txt) {
         const subWeight = txt.subheadlineWeight || '400';
         context.font = `${subFontStyle} ${subWeight} ${txt.subheadlineSize}px ${txt.subheadlineFont || txt.headlineFont}`;
         context.fillStyle = hexToRgba(txt.subheadlineColor, txt.subheadlineOpacity / 100);
+
+        // Apply subheadline shadow if enabled
+        const ss = txt.subheadlineShadow;
+        if (ss?.enabled) {
+            context.shadowColor = hexToRgba(ss.color, ss.opacity / 100);
+            context.shadowBlur = ss.blur;
+            context.shadowOffsetX = ss.offsetX;
+            context.shadowOffsetY = ss.offsetY;
+        }
 
         const lines = wrapText(context, subheadline, dims.width - padding * 2);
         const subLineHeight = txt.subheadlineSize * 1.4;
@@ -6065,6 +6637,12 @@ function drawTextToContext(context, dims, txt) {
         if (txt.position === 'bottom') {
             context.textBaseline = 'bottom';
         }
+
+        // Reset shadow after subheadline
+        context.shadowColor = 'transparent';
+        context.shadowBlur = 0;
+        context.shadowOffsetX = 0;
+        context.shadowOffsetY = 0;
     }
 }
 
@@ -6183,7 +6761,7 @@ function drawScreenshot() {
 
     // Apply perspective (simulated with scale transform)
     if (settings.perspective !== 0) {
-        const perspectiveScale = 1 - Math.abs(settings.perspective) * 0.005;
+        // const perspectiveScale = 1 + (Math.abs(tiltX) + Math.abs(tiltY)) * 0.002;
         ctx.transform(1, settings.perspective * 0.01, 0, 1, 0, 0);
     }
 
@@ -6272,7 +6850,7 @@ function drawDeviceFrame(x, y, width, height) {
     ctx.strokeStyle = frameColor;
     ctx.lineWidth = frameWidth;
     ctx.beginPath();
-    roundRect(ctx, x - frameWidth/2, y - frameWidth/2, width + frameWidth, height + frameWidth, radius);
+    roundRect(ctx, x - frameWidth / 2, y - frameWidth / 2, width + frameWidth, height + frameWidth, radius);
     ctx.stroke();
     ctx.globalAlpha = 1;
 }
@@ -6513,7 +7091,7 @@ function validateScreenshot(screenshotIndex) {
         return { valid: false, errors, warnings };
     }
 
-    const dims = getCanvasDimensions();
+
     const settings = screenshot.screenshot || getScreenshotSettings();
     const text = getTextSettings();
 
@@ -6547,7 +7125,7 @@ function validateScreenshot(screenshotIndex) {
         const textColor = text.headlineColor || '#FFFFFF';
         const textLuminance = getRelativeLuminance(textColor);
         const contrastRatio = (Math.max(bgLuminance, textLuminance) + 0.05) /
-                             (Math.min(bgLuminance, textLuminance) + 0.05);
+            (Math.min(bgLuminance, textLuminance) + 0.05);
 
         if (contrastRatio < 4.5) {
             warnings.push(`Text contrast ratio (${contrastRatio.toFixed(1)}:1) may be too low for readability`);
@@ -6626,7 +7204,7 @@ function validateSetConsistency() {
     const fonts = new Set();
     const fontSizes = new Set();
 
-    state.screenshots.forEach((s, i) => {
+    state.screenshots.forEach((s, _i) => {
         const text = s.text || state.text;
         fonts.add(text.headlineFont);
         fontSizes.add(text.headlineSize);
@@ -6689,9 +7267,53 @@ function showValidationResults(validation) {
     return true;
 }
 
+// Helper function to get canvas data in the configured format
+function getCanvasDataUrl(targetCanvas = canvas) {
+    const format = state.export?.format || 'png';
+    const quality = (state.export?.quality || 92) / 100;
+
+    let mimeType, extension;
+    switch (format) {
+        case 'jpeg':
+        case 'jpg':
+            mimeType = 'image/jpeg';
+            extension = 'jpg';
+            break;
+        case 'webp':
+            mimeType = 'image/webp';
+            extension = 'webp';
+            break;
+        default:
+            mimeType = 'image/png';
+            extension = 'png';
+    }
+
+    // PNG doesn't support quality parameter
+    const dataUrl = format === 'png'
+        ? targetCanvas.toDataURL(mimeType)
+        : targetCanvas.toDataURL(mimeType, quality);
+
+    return { dataUrl, mimeType, extension };
+}
+
+// Get just the file extension for current export format
+// eslint-disable-next-line no-unused-vars
+function getExportExtension() {
+    const format = state.export?.format || 'png';
+    switch (format) {
+        case 'jpeg':
+        case 'jpg':
+            return 'jpg';
+        case 'webp':
+            return 'webp';
+        default:
+            return 'png';
+    }
+}
+
 function exportCurrent() {
     if (state.screenshots.length === 0) {
-        alert('Please upload a screenshot first');
+        showAppAlert('Please upload a screenshot first', 'info');
         return;
     }
 
@@ -6705,9 +7327,10 @@ function exportCurrent() {
     // Ensure canvas is up-to-date (especially important for 3D mode)
     updateCanvas();
 
+    const { dataUrl, extension } = getCanvasDataUrl(canvas);
     const link = document.createElement('a');
-    link.download = `screenshot-${state.selectedIndex + 1}.png`;
-    link.href = canvas.toDataURL('image/png');
+    link.download = `screenshot-${state.selectedIndex + 1}.${extension}`;
+    link.href = dataUrl;
     link.click();
 }
 
@@ -6716,11 +7339,11 @@ let isExporting = false;
 
 async function exportAll() {
     if (isExporting) {
-        alert('Export already in progress. Please wait.');
+        showAppAlert('Export already in progress. Please wait.', 'info');
         return;
     }
     if (state.screenshots.length === 0) {
-        alert('Please upload screenshots first');
+        showAppAlert('Please upload screenshots first', 'info');
         return;
     }
 
@@ -6771,7 +7394,7 @@ function hideExportProgress() {
 // Export all screenshots for a specific language
 async function exportAllForLanguage(lang) {
     if (isExporting) {
-        alert('Export already in progress. Please wait.');
+        showAppAlert('Export already in progress. Please wait.', 'info');
         return;
     }
     isExporting = true;
@@ -6809,10 +7432,10 @@ async function exportAllForLanguage(lang) {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         // Get canvas data as base64, strip the data URL prefix
-        const dataUrl = canvas.toDataURL('image/png');
-        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+        const { dataUrl, extension } = getCanvasDataUrl(canvas);
+        const base64Data = dataUrl.replace(/^data:image\/[a-z]+;base64,/, '');
 
-        zip.file(`screenshot-${i + 1}.png`, base64Data, { base64: true });
+        zip.file(`screenshot-${i + 1}.${extension}`, base64Data, { base64: true });
     }
 
     // Restore original settings
@@ -6843,7 +7466,7 @@ async function exportAllForLanguage(lang) {
 // Export all screenshots for all languages (separate folders)
 async function exportAllLanguages() {
     if (isExporting) {
-        alert('Export already in progress. Please wait.');
+        showAppAlert('Export already in progress. Please wait.', 'info');
         return;
     }
     isExporting = true;
@@ -6888,11 +7511,11 @@ async function exportAllLanguages() {
             await new Promise(resolve => setTimeout(resolve, 100));
 
             // Get canvas data as base64, strip the data URL prefix
-            const dataUrl = canvas.toDataURL('image/png');
-            const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+            const { dataUrl, extension } = getCanvasDataUrl(canvas);
+            const base64Data = dataUrl.replace(/^data:image\/[a-z]+;base64,/, '');
 
             // Use language code as folder name
-            zip.file(`${lang}/screenshot-${i + 1}.png`, base64Data, { base64: true });
+            zip.file(`${lang}/screenshot-${i + 1}.${extension}`, base64Data, { base64: true });
         }
     }
 
@@ -6921,6 +7544,109 @@ async function exportAllLanguages() {
     isExporting = false;
 }
 
+// App Store required sizes for auto-export
+const appStoreSizes = {
+    iOS: [
+        { id: 'iphone-6.9', name: 'iPhone 6.9"', width: 1320, height: 2868, required: true },
+        { id: 'iphone-6.7', name: 'iPhone 6.7"', width: 1290, height: 2796, required: true },
+        { id: 'iphone-6.5', name: 'iPhone 6.5"', width: 1284, height: 2778, required: true },
+        { id: 'iphone-5.5', name: 'iPhone 5.5"', width: 1242, height: 2208, required: false },
+        { id: 'ipad-12.9', name: 'iPad 12.9"', width: 2048, height: 2732, required: false },
+        { id: 'ipad-11', name: 'iPad 11"', width: 1668, height: 2388, required: false }
+    ],
+    Android: [
+        { id: 'android-phone', name: 'Android Phone', width: 1080, height: 1920, required: true },
+        { id: 'android-phone-hd', name: 'Android Phone HD', width: 1440, height: 2560, required: false }
+    ]
+};
+
+// Export all screenshots to all App Store sizes at once
+async function exportAllSizes(platform = 'iOS') {
+    if (isExporting) {
+        showAppAlert('Export already in progress. Please wait.', 'info');
+        return;
+    }
+    if (state.screenshots.length === 0) {
+        showAppAlert('Please upload screenshots first', 'info');
+        return;
+    }
+
+    isExporting = true;
+    const originalDevice = state.outputDevice;
+    const originalIndex = state.selectedIndex;
+    const zip = new JSZip();
+    const sizes = appStoreSizes[platform] || appStoreSizes.iOS;
+
+    const totalItems = state.screenshots.length * sizes.length;
+    let completedItems = 0;
+
+    showExportProgress('Exporting to all sizes...', 'Preparing...', 0);
+
+    try {
+        for (const size of sizes) {
+            // Create folder for each size
+            const folder = zip.folder(size.name.replace(/[^a-zA-Z0-9.-]/g, '_'));
+
+            // Temporarily switch to this device size
+            state.outputDevice = size.id;
+
+            for (let i = 0; i < state.screenshots.length; i++) {
+                state.selectedIndex = i;
+
+                // Resize canvas to target dimensions
+                canvas.width = size.width;
+                canvas.height = size.height;
+
+                updateCanvas();
+
+                // Wait for render
+                await new Promise(resolve => setTimeout(resolve, 50));
+
+                // Get canvas data
+                const { dataUrl, extension } = getCanvasDataUrl(canvas);
+                const base64Data = dataUrl.replace(/^data:image\/[a-z]+;base64,/, '');
+                folder.file(`screenshot-${i + 1}.${extension}`, base64Data, { base64: true });
+
+                completedItems++;
+                const percent = Math.round((completedItems / totalItems) * 90);
+                showExportProgress('Exporting...', `${size.name} - Screenshot ${i + 1}`, percent);
+            }
+        }
+
+        // Restore original settings
+        state.outputDevice = originalDevice;
+        state.selectedIndex = originalIndex;
+        updateCanvas();
+
+        // Generate ZIP
+        showExportProgress('Generating ZIP...', '', 95);
+        const content = await zip.generateAsync({ type: 'blob' });
+
+        showExportProgress('Complete!', '', 100);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        hideExportProgress();
+
+        const link = document.createElement('a');
+        link.download = `screenshots-all-${platform.toLowerCase()}-sizes.zip`;
+        link.href = URL.createObjectURL(content);
+        link.click();
+        URL.revokeObjectURL(link.href);
+    } catch (error) {
+        console.error('Export all sizes failed:', error);
+        showAppAlert('Export failed: ' + error.message, 'error');
+        hideExportProgress();
+    } finally {
+        isExporting = false;
+        // Restore canvas
+        state.outputDevice = originalDevice;
+        state.selectedIndex = originalIndex;
+        updateCanvas();
+    }
+}
+
+// Make available globally
+window.exportAllSizes = exportAllSizes;
+
 // ======================================
 // NEW COMBINED FEATURES INTEGRATION
 // ======================================
@@ -6934,7 +7660,7 @@ if (_magicDesignBtn) {
         console.log('[Magic Design] Button clicked! Screenshots:', state.screenshots.length);
 
         if (state.screenshots.length === 0) {
-            alert('Please upload at least one screenshot first.');
+            showAppAlert('Please upload at least one screenshot first.', 'info');
             return;
         }
 
@@ -6955,31 +7681,31 @@ if (_magicDesignBtn) {
             return;
         }
 
-    // Show input modal
-    const inputModal = document.getElementById('magic-design-input-modal');
-    const appNameInput = document.getElementById('magic-app-name');
-    const appDescInput = document.getElementById('magic-app-description');
+        // Show input modal
+        const inputModal = document.getElementById('magic-design-input-modal');
+        const appNameInput = document.getElementById('magic-app-name');
+        const appDescInput = document.getElementById('magic-app-description');
 
-    // Pre-fill with project name if available
-    appNameInput.value = state.projectName || '';
-    appDescInput.value = state.appDescription || '';
+        // Pre-fill with project name if available
+        appNameInput.value = state.projectName || '';
+        appDescInput.value = state.appDescription || '';
 
-    // Populate language dropdown
-    const languageSelect = document.getElementById('magic-language');
-    if (languageSelect) {
-        languageSelect.innerHTML = '';
-        const languages = state.languages || ['en'];
-        languages.forEach(lang => {
-            const option = document.createElement('option');
-            option.value = lang;
-            option.textContent = window.getLanguageName ? window.getLanguageName(lang) : lang;
-            if (lang === state.currentLanguage) option.selected = true;
-            languageSelect.appendChild(option);
-        });
-    }
+        // Populate language dropdown
+        const languageSelect = document.getElementById('magic-language');
+        if (languageSelect) {
+            languageSelect.innerHTML = '';
+            const languages = state.languages || ['en'];
+            languages.forEach(lang => {
+                const option = document.createElement('option');
+                option.value = lang;
+                option.textContent = window.getLanguageName ? window.getLanguageName(lang) : lang;
+                if (lang === state.currentLanguage) option.selected = true;
+                languageSelect.appendChild(option);
+            });
+        }
 
-    inputModal.classList.add('active');
-    appNameInput.focus();
+        inputModal.classList.add('active');
+        appNameInput.focus();
     });
 } else {
     console.warn('[Magic Design] Button element not found!');
@@ -7028,14 +7754,14 @@ document.getElementById('magic-input-start')?.addEventListener('click', async ()
     console.log('[MagicDesign] Falling back to old AI Agents system');
 
     if (!appName) {
-        alert('Please enter your app name.');
+        showAppAlert('Please enter your app name.', 'info');
         inputModal.classList.add('active');
         document.getElementById('magic-app-name').focus();
         return;
     }
 
     if (!appDescription) {
-        alert('Please enter a description of your app.');
+        showAppAlert('Please enter a description of your app.', 'info');
         inputModal.classList.add('active');
         document.getElementById('magic-app-description').focus();
         return;
@@ -7072,11 +7798,11 @@ document.getElementById('magic-input-start')?.addEventListener('click', async ()
                 progressBar.style.width = `${percent}%`;
 
                 // Update stage indicators
-                stages.forEach((s, i) => {
-                    if (i < index) {
+                stages.forEach((s, _i) => {
+                    if (_i < index) {
                         s.classList.remove('active');
                         s.classList.add('completed');
-                    } else if (i === index) {
+                    } else if (_i === index) {
                         s.classList.add('active');
                         s.classList.remove('completed');
                     } else {
@@ -7118,32 +7844,66 @@ document.getElementById('magic-input-start')?.addEventListener('click', async ()
     modal.classList.remove('active');
 });
 
-// Undo/Redo Button Handlers
+// Undo/Redo Button Handlers - Apply undo state while preserving image references
+function applyUndoState(undoState) {
+    if (!undoState) return;
+
+    // Restore screenshots while preserving Image objects
+    if (undoState.screenshots) {
+        // Match screenshots by index and restore settings
+        const newScreenshots = undoState.screenshots.map((savedSs, i) => {
+            // Try to find matching screenshot by image src
+            const existingSs = state.screenshots.find(s => {
+                const existingSrc = s.image?.src || Object.values(s.localizedImages || {})[0]?.src;
+                const savedSrc = Object.values(savedSs.localizedImages || {})[0]?.src;
+                return existingSrc === savedSrc;
+            }) || state.screenshots[i];
+
+            // Keep image references, apply saved settings
+            return {
+                ...savedSs,
+                image: existingSs?.image,
+                localizedImages: Object.keys(savedSs.localizedImages || {}).reduce((acc, lang) => {
+                    const savedLang = savedSs.localizedImages[lang];
+                    const existingLang = existingSs?.localizedImages?.[lang];
+                    acc[lang] = {
+                        src: savedLang?.src,
+                        name: savedLang?.name,
+                        image: existingLang?.image // Keep existing Image object
+                    };
+                    return acc;
+                }, {})
+            };
+        });
+        state.screenshots = newScreenshots;
+    }
+
+    // Restore other state properties
+    if (undoState.selectedIndex !== undefined) state.selectedIndex = undoState.selectedIndex;
+    if (undoState.outputDevice) state.outputDevice = undoState.outputDevice;
+    if (undoState.customWidth) state.customWidth = undoState.customWidth;
+    if (undoState.customHeight) state.customHeight = undoState.customHeight;
+    if (undoState.currentLanguage) state.currentLanguage = undoState.currentLanguage;
+    if (undoState.projectLanguages) state.projectLanguages = [...undoState.projectLanguages];
+    if (undoState.defaults) state.defaults = JSON.parse(JSON.stringify(undoState.defaults));
+
+    updateScreenshotList();
+    updateCanvas();
+    syncUIWithState();
+}
+
 document.getElementById('undo-btn')?.addEventListener('click', () => {
     const previousState = window.UndoRedo?.undo();
-    if (previousState) {
-        // Apply the state
-        Object.assign(state, previousState);
-        updateCanvas();
-        syncUIWithState();
-    }
+    applyUndoState(previousState);
 });
 
 document.getElementById('redo-btn')?.addEventListener('click', () => {
     const nextState = window.UndoRedo?.redo();
-    if (nextState) {
-        Object.assign(state, nextState);
-        updateCanvas();
-        syncUIWithState();
-    }
+    applyUndoState(nextState);
 });
 
 // Initialize Undo/Redo keyboard shortcuts
-window.UndoRedo?.setupKeyboardShortcuts((newState) => {
-    Object.assign(state, newState);
-    updateCanvas();
-    syncUIWithState();
-});
+window.UndoRedo?.setupKeyboardShortcuts(applyUndoState);
 
 // Initialize onboarding for first-time users
 setTimeout(() => {
@@ -7172,7 +7932,7 @@ function generateLayoutSVG(layout) {
     const height = 28 * scale;
 
     let svg = `<svg viewBox="0 0 40 60" fill="none" stroke="currentColor" stroke-width="1.5">`;
-    svg += `<rect x="${x - width/2}" y="${y - height/2}" width="${width}" height="${height}" rx="2" transform="rotate(${rotation} ${x} ${y})"/>`;
+    svg += `<rect x="${x - width / 2}" y="${y - height / 2}" width="${width}" height="${height}" rx="2" transform="rotate(${rotation} ${x} ${y})"/>`;
 
     if (layout.showSecondaryDevice && layout.secondaryDevice) {
         const sd = layout.secondaryDevice;
@@ -7180,7 +7940,7 @@ function generateLayoutSVG(layout) {
         const sy = 25 + (sd.y || 10) * 0.3;
         const swidth = 16 * (sd.scale || 0.6);
         const sheight = 28 * (sd.scale || 0.6);
-        svg += `<rect x="${sx - swidth/2}" y="${sy - sheight/2}" width="${swidth}" height="${sheight}" rx="2" transform="rotate(${sd.rotation || 0} ${sx} ${sy})" opacity="0.6"/>`;
+        svg += `<rect x="${sx - swidth / 2}" y="${sy - sheight / 2}" width="${swidth}" height="${sheight}" rx="2" transform="rotate(${sd.rotation || 0} ${sx} ${sy})" opacity="0.6"/>`;
     }
 
     svg += `</svg>`;
@@ -7445,7 +8205,7 @@ document.getElementById('widget-clear-btn')?.addEventListener('click', () => {
 // ============================================
 
 // Text shadow toggle
-document.getElementById('text-shadow-toggle')?.addEventListener('click', function() {
+document.getElementById('text-shadow-toggle')?.addEventListener('click', function () {
     this.classList.toggle('active');
     const options = document.getElementById('text-shadow-options');
     const row = this.closest('.toggle-row');
@@ -7530,13 +8290,12 @@ document.getElementById('ai-bg-generate')?.addEventListener('click', async () =>
     btn.disabled = true;
     btn.classList.add('loading');
     btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7-6-4.6h7.6z"/></svg> Generating...`;
-
     try {
         const colors = await generateBackgroundColors(prompt, style);
         applyGeneratedBackground(colors);
     } catch (error) {
         console.error('Background generation failed:', error);
-        alert('Failed to generate background. Please try again.');
+        showAppAlert('Failed to generate background. Please try again.', 'error');
     } finally {
         btn.disabled = false;
         btn.classList.remove('loading');
@@ -7705,155 +8464,161 @@ function detectClickTarget(coords) {
     return null;
 }
 
-canvas.addEventListener('mousedown', (e) => {
-    const coords = getCanvasCoords(e);
-    const target = detectClickTarget(coords);
-
-    if (target) {
-        canvasInteraction.isDragging = true;
-        canvasInteraction.dragTarget = target.type;
-        canvasInteraction.dragData = target;
-        canvasInteraction.startPos = { x: e.clientX, y: e.clientY };
-
-        // Store starting values
-        switch (target.type) {
-            case 'screenshot':
-                canvasInteraction.startValue = { x: target.data.x, y: target.data.y };
-                break;
-            case 'text':
-                canvasInteraction.startValue = { offsetY: target.data.offsetY || 12 };
-                break;
-            case 'element':
-                canvasInteraction.startValue = { x: target.data.x, y: target.data.y };
-                canvasInteraction.selectedElement = target.index;
-                break;
-            case 'widget':
-                canvasInteraction.startValue = { ...target.data.position };
-                break;
-        }
-
-        canvas.style.cursor = 'grabbing';
-        e.preventDefault();
-    }
-});
-
-canvas.addEventListener('mousemove', (e) => {
-    if (!canvasInteraction.isDragging) {
-        // Update cursor based on hover
+if (canvas) {
+    canvas.addEventListener('mousedown', (e) => {
         const coords = getCanvasCoords(e);
         const target = detectClickTarget(coords);
-        canvas.style.cursor = target ? 'grab' : 'default';
-        return;
-    }
 
-    const rect = canvas.getBoundingClientRect();
-    const deltaX = (e.clientX - canvasInteraction.startPos.x) / rect.width * 100;
-    const deltaY = (e.clientY - canvasInteraction.startPos.y) / rect.height * 100;
-    const screenshot = state.screenshots[state.selectedIndex];
+        if (target) {
+            canvasInteraction.isDragging = true;
+            canvasInteraction.dragTarget = target.type;
+            canvasInteraction.dragData = target;
+            canvasInteraction.startPos = { x: e.clientX, y: e.clientY };
 
-    switch (canvasInteraction.dragTarget) {
-        case 'screenshot': {
-            const ss = getScreenshotSettings();
-            ss.x = Math.max(10, Math.min(90, canvasInteraction.startValue.x + deltaX));
-            ss.y = Math.max(10, Math.min(90, canvasInteraction.startValue.y + deltaY));
-            break;
-        }
-
-        case 'text': {
-            const textSettings = getTextSettings();
-            const newOffsetY = canvasInteraction.startValue.offsetY +
-                (textSettings.position === 'top' ? deltaY : -deltaY);
-            textSettings.offsetY = Math.max(2, Math.min(40, newOffsetY));
-            break;
-        }
-
-        case 'element': {
-            if (screenshot?.elements && canvasInteraction.selectedElement !== null) {
-                const el = screenshot.elements[canvasInteraction.selectedElement];
-                el.x = Math.max(5, Math.min(95, canvasInteraction.startValue.x + deltaX));
-                el.y = Math.max(5, Math.min(95, canvasInteraction.startValue.y + deltaY));
+            // Store starting values
+            switch (target.type) {
+                case 'screenshot':
+                    canvasInteraction.startValue = { x: target.data.x, y: target.data.y };
+                    break;
+                case 'text':
+                    canvasInteraction.startValue = { offsetY: target.data.offsetY || 12 };
+                    break;
+                case 'element':
+                    canvasInteraction.startValue = { x: target.data.x, y: target.data.y };
+                    canvasInteraction.selectedElement = target.index;
+                    break;
+                case 'widget':
+                    canvasInteraction.startValue = { ...target.data.position };
+                    break;
             }
-            break;
+
+            canvas.style.cursor = 'grabbing';
+            e.preventDefault();
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!canvasInteraction.isDragging) {
+            // Update cursor based on hover
+            const coords = getCanvasCoords(e);
+            const target = detectClickTarget(coords);
+            canvas.style.cursor = target ? 'grab' : 'default';
+            return;
         }
 
-        case 'widget': {
-            if (screenshot?.widgets && canvasInteraction.dragData?.index !== undefined) {
-                const widget = screenshot.widgets[canvasInteraction.dragData.index];
-                widget.position.x = Math.max(2, Math.min(85, canvasInteraction.startValue.x + deltaX));
-                widget.position.y = Math.max(2, Math.min(90, canvasInteraction.startValue.y + deltaY));
+        const rect = canvas.getBoundingClientRect();
+        const deltaX = (e.clientX - canvasInteraction.startPos.x) / rect.width * 100;
+        const deltaY = (e.clientY - canvasInteraction.startPos.y) / rect.height * 100;
+        const screenshot = state.screenshots[state.selectedIndex];
+
+        switch (canvasInteraction.dragTarget) {
+            case 'screenshot': {
+                const ss = getScreenshotSettings();
+                ss.x = Math.max(10, Math.min(90, canvasInteraction.startValue.x + deltaX));
+                ss.y = Math.max(10, Math.min(90, canvasInteraction.startValue.y + deltaY));
+                break;
             }
-            break;
+
+            case 'text': {
+                const textSettings = getTextSettings();
+                const newOffsetY = canvasInteraction.startValue.offsetY +
+                    (textSettings.position === 'top' ? deltaY : -deltaY);
+                textSettings.offsetY = Math.max(2, Math.min(40, newOffsetY));
+                break;
+            }
+
+            case 'element': {
+                if (screenshot?.elements && canvasInteraction.selectedElement !== null) {
+                    const el = screenshot.elements[canvasInteraction.selectedElement];
+                    el.x = Math.max(5, Math.min(95, canvasInteraction.startValue.x + deltaX));
+                    el.y = Math.max(5, Math.min(95, canvasInteraction.startValue.y + deltaY));
+                }
+                break;
+            }
+
+            case 'widget': {
+                if (screenshot?.widgets && canvasInteraction.dragData?.index !== undefined) {
+                    const widget = screenshot.widgets[canvasInteraction.dragData.index];
+                    widget.position.x = Math.max(2, Math.min(85, canvasInteraction.startValue.x + deltaX));
+                    widget.position.y = Math.max(2, Math.min(90, canvasInteraction.startValue.y + deltaY));
+                }
+                break;
+            }
         }
-    }
 
-    updateCanvas();
-});
+        updateCanvas();
+    });
 
-canvas.addEventListener('mouseup', () => {
-    if (canvasInteraction.isDragging) {
-        canvasInteraction.isDragging = false;
-        canvasInteraction.dragTarget = null;
-        canvas.style.cursor = 'default';
+    canvas.addEventListener('mouseup', () => {
+        if (canvasInteraction.isDragging) {
+            const actionName = canvasInteraction.dragTarget === 'screenshot' ? 'Move screenshot' :
+                canvasInteraction.dragTarget === 'text' ? 'Move text' :
+                canvasInteraction.dragTarget === 'widget' ? 'Move widget' : 'Move element';
+            canvasInteraction.isDragging = false;
+            canvasInteraction.dragTarget = null;
+            canvas.style.cursor = 'default';
+            syncUIWithState();
+            trackUndoState(actionName);
+        }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        if (canvasInteraction.isDragging) {
+            canvasInteraction.isDragging = false;
+            canvasInteraction.dragTarget = null;
+            canvas.style.cursor = 'default';
+        }
+    });
+
+    // ============================================
+    // Scroll to Resize
+    // ============================================
+
+    canvas.addEventListener('wheel', (e) => {
+        const coords = getCanvasCoords(e);
+        const target = detectClickTarget(coords);
+
+        if (!target) return;
+
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -2 : 2; // Scroll down = smaller, up = larger
+        const screenshot = state.screenshots[state.selectedIndex];
+
+        switch (target.type) {
+            case 'screenshot': {
+                const ss = getScreenshotSettings();
+                ss.scale = Math.max(20, Math.min(150, ss.scale + delta));
+                break;
+            }
+
+            case 'text': {
+                const textSettings = getTextSettings();
+                textSettings.headlineSize = Math.max(30, Math.min(150, (textSettings.headlineSize || 80) + delta));
+                break;
+            }
+
+            case 'element': {
+                if (screenshot?.elements && target.index !== undefined) {
+                    const el = screenshot.elements[target.index];
+                    el.scale = Math.max(5, Math.min(100, el.scale + delta));
+                }
+                break;
+            }
+
+            case 'widget': {
+                if (screenshot?.widgets && target.index !== undefined) {
+                    const widget = screenshot.widgets[target.index];
+                    widget.style = widget.style || {};
+                    widget.style.fontSize = Math.max(10, Math.min(30, (widget.style.fontSize || 14) + delta / 2));
+                }
+                break;
+            }
+        }
+
+        updateCanvas();
         syncUIWithState();
-    }
-});
-
-canvas.addEventListener('mouseleave', () => {
-    if (canvasInteraction.isDragging) {
-        canvasInteraction.isDragging = false;
-        canvasInteraction.dragTarget = null;
-        canvas.style.cursor = 'default';
-    }
-});
-
-// ============================================
-// Scroll to Resize
-// ============================================
-
-canvas.addEventListener('wheel', (e) => {
-    const coords = getCanvasCoords(e);
-    const target = detectClickTarget(coords);
-
-    if (!target) return;
-
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -2 : 2; // Scroll down = smaller, up = larger
-    const screenshot = state.screenshots[state.selectedIndex];
-
-    switch (target.type) {
-        case 'screenshot': {
-            const ss = getScreenshotSettings();
-            ss.scale = Math.max(20, Math.min(150, ss.scale + delta));
-            break;
-        }
-
-        case 'text': {
-            const textSettings = getTextSettings();
-            textSettings.headlineSize = Math.max(30, Math.min(150, (textSettings.headlineSize || 80) + delta));
-            break;
-        }
-
-        case 'element': {
-            if (screenshot?.elements && target.index !== undefined) {
-                const el = screenshot.elements[target.index];
-                el.scale = Math.max(5, Math.min(100, el.scale + delta));
-            }
-            break;
-        }
-
-        case 'widget': {
-            if (screenshot?.widgets && target.index !== undefined) {
-                const widget = screenshot.widgets[target.index];
-                widget.style = widget.style || {};
-                widget.style.fontSize = Math.max(10, Math.min(30, (widget.style.fontSize || 14) + delta / 2));
-            }
-            break;
-        }
-    }
-
-    updateCanvas();
-    syncUIWithState();
-}, { passive: false });
+    }, { passive: false });
+}
 
 // ============================================
 // Apply Background to All Screenshots
@@ -7940,7 +8705,7 @@ function updateElementsList() {
     `).join('');
 }
 
-window.removeElement = function(elementId) {
+window.removeElement = function (elementId) {
     const screenshot = state.screenshots[state.selectedIndex];
     if (!screenshot?.elements) return;
 
@@ -7949,9 +8714,9 @@ window.removeElement = function(elementId) {
     updateCanvas();
 };
 
-window.moveElementToCanvas = function(elementId) {
+window.moveElementToCanvas = function (_elementId) {
     // Element is already on canvas, this just confirms placement
-    alert('Drag the element on the canvas to position it. Use scroll to resize.');
+    showAppAlert('Drag the element on the canvas to position it. Use scroll to resize.', 'info');
 };
 
 // Draw elements on canvas (add to updateCanvas flow)
@@ -7990,7 +8755,7 @@ function drawElementImage(img, element, dims) {
 }
 
 // Elements toggle (collapsible section)
-document.querySelector('[data-target="elements-options"]')?.addEventListener('click', function() {
+document.querySelector('[data-target="elements-options"]')?.addEventListener('click', function () {
     const options = document.getElementById('elements-options');
     if (options) {
         const isCollapsed = this.classList.contains('collapsed');
@@ -8062,6 +8827,7 @@ function selectAndApplyTemplate(templateId) {
         window.FreshTemplates.applyTemplate(template, screenshot);
         updateCanvas();
         syncUIWithState();
+        trackUndoState('Apply template');
     }
 }
 
@@ -8073,7 +8839,7 @@ document.getElementById('template-category-filter')?.addEventListener('change', 
 // Apply template to all
 document.getElementById('apply-template-all-btn')?.addEventListener('click', () => {
     if (!selectedTemplate) {
-        alert('Please select a template first');
+        showAppAlert('Please select a template first', 'info');
         return;
     }
 
@@ -8082,6 +8848,7 @@ document.getElementById('apply-template-all-btn')?.addEventListener('click', () 
         updateCanvas();
         updateSidePreviews();
         syncUIWithState();
+        trackUndoState('Apply template to all');
     }
 });
 
@@ -8089,7 +8856,7 @@ document.getElementById('apply-template-all-btn')?.addEventListener('click', () 
 document.getElementById('smart-match-btn')?.addEventListener('click', async () => {
     const screenshot = state.screenshots[state.selectedIndex];
     if (!screenshot) {
-        alert('Please upload a screenshot first');
+        showAppAlert('Please upload a screenshot first', 'info');
         return;
     }
 
@@ -8108,7 +8875,7 @@ document.getElementById('smart-match-btn')?.addEventListener('click', async () =
         const colors = await window.FreshTemplates.extractColorsFromImage(imgSrc);
 
         // Determine if screenshot is dark or light
-        const isDark = isImageDark(imgSrc);
+        const isDark = await isImageDark(imgSrc);
 
         // Generate smart template
         const smartTemplate = window.FreshTemplates.generateSmartTemplate(colors, isDark);
@@ -8117,6 +8884,7 @@ document.getElementById('smart-match-btn')?.addEventListener('click', async () =
         window.FreshTemplates.applyTemplate(smartTemplate, screenshot);
         updateCanvas();
         syncUIWithState();
+        trackUndoState('Smart Match');
 
         // Show success feedback
         btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Applied!';
@@ -8133,8 +8901,45 @@ document.getElementById('smart-match-btn')?.addEventListener('click', async () =
 });
 
 function isImageDark(imgSrc) {
-    // Simple brightness check - assume dark if we can't determine
-    return true;
+    // Analyze image brightness using canvas
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                // Sample at reduced size for performance
+                const sampleSize = 50;
+                canvas.width = sampleSize;
+                canvas.height = sampleSize;
+                ctx.drawImage(img, 0, 0, sampleSize, sampleSize);
+
+                const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize);
+                const data = imageData.data;
+                let totalBrightness = 0;
+                let pixelCount = 0;
+
+                // Sample every 4th pixel for speed
+                for (let i = 0; i < data.length; i += 16) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    // Perceived brightness formula
+                    const brightness = (0.299 * r + 0.587 * g + 0.114 * b);
+                    totalBrightness += brightness;
+                    pixelCount++;
+                }
+
+                const avgBrightness = totalBrightness / pixelCount;
+                resolve(avgBrightness < 128); // Dark if average brightness < 50%
+            } catch (_e) {
+                resolve(true); // Default to dark on error
+            }
+        };
+        img.onerror = () => resolve(true); // Default to dark on error
+        img.src = imgSrc;
+    });
 }
 
 // Story Flow Button Handler
@@ -8158,5 +8963,49 @@ setTimeout(() => {
     populateTemplateGrid('all');
 }, 500);
 
+// Export functions and variables for testing (before initSync to ensure availability)
+window.state = state;
+window.languageFlags = languageFlags;
+window.languageNames = languageNames;
+window.getCurrentScreenshot = getCurrentScreenshot;
+window.getBackground = getBackground;
+window.getScreenshotSettings = getScreenshotSettings;
+window.getTextSettings = getTextSettings;
+window.formatValue = formatValue;
+window.getCanvasDimensions = getCanvasDimensions;
+window.updateCanvas = updateCanvas;
+window.syncUIWithState = syncUIWithState;
+window.createProject = createProject;
+window.deleteProject = deleteProject;
+window.switchProject = switchProject;
+window.debouncedSaveState = debouncedSaveState;
+window.SAVE_DEBOUNCE_MS = SAVE_DEBOUNCE_MS;
+window.saveStateTimeout = saveStateTimeout;
+window.VALID_IMAGE_TYPES = VALID_IMAGE_TYPES;
+window.MAX_FILE_SIZE = MAX_FILE_SIZE;
+window.exportAll = exportAll;
+window.canvas = canvas;
+
+// Use defineProperty for isExporting to ensure getter returns current value
+Object.defineProperty(window, 'isExporting', {
+    get: function () { return isExporting; },
+    set: function (val) { isExporting = val; },
+    configurable: true
+});
+
 // Initialize the app
 initSync();
+
+// Expose global functions for linter
+window.applyMagicPreset = applyMagicPreset;
+window.addWidget = addWidget;
+window.removeWidget = removeWidget;
+window.setCurrentScreenshotAsDefault = typeof setCurrentScreenshotAsDefault !== 'undefined' ? setCurrentScreenshotAsDefault : null;
+window.handleFilesFromElectron = typeof handleFilesFromElectron !== 'undefined' ? handleFilesFromElectron : null;
+window.applyCategoryProfile = typeof applyCategoryProfile !== 'undefined' ? applyCategoryProfile : null;
+window.convertProject = typeof convertProject !== 'undefined' ? convertProject : null;
+window.hideMigrationPrompt = typeof hideMigrationPrompt !== 'undefined' ? hideMigrationPrompt : null;
+window.cancelTransfer = typeof cancelTransfer !== 'undefined' ? cancelTransfer : null;
+window.addHeadlineLanguage = typeof addHeadlineLanguage !== 'undefined' ? addHeadlineLanguage : null;
+window.addSubheadlineLanguage = typeof addSubheadlineLanguage !== 'undefined' ? addSubheadlineLanguage : null;
+window.isPerScreenshotTextMode = typeof isPerScreenshotTextMode !== 'undefined' ? isPerScreenshotTextMode : null;
